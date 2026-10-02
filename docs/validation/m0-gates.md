@@ -16,7 +16,8 @@ Tracking issue: [#3 — M0 external HIS, SMIS, authorization, and operations val
 
 ## Mapping evidence
 
-- [ ] Validate clinic order code → NHI code → official material code for every enabled antiviral. `A059653100` is owner-confirmed as the target code for publicly funded Eraflu, but its DBF field and the 5-character `MED1` mapping remain unresolved.
+- [x] Validate the clinic-to-NHI mapping for Eraflu: `CH012M1.MED1 = ERA` → `H_INV.ITEMN = ERA` → `H_INV.LABNUM = A059653100`; cross-check against the rightmost 10 characters of `CH012M1.PRICE1` (owner confirmation, 2026-10-02).
+- [ ] Map NHI code `A059653100` to the exact official SMIS material code and validate mismatch/quarantine behavior with synthetic data.
 - [ ] Record effective dates and the owner of each mapping.
 
 ## Official outpatient export evidence

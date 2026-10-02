@@ -21,20 +21,21 @@ The following fields are candidates documented by the reviewed HIS schema materi
 | `PD011M1` patient master | `NUM`, `NAME`, `SEX`, `BIRTH`, `ID` | Patient data is located by internal patient key `NUM`. |
 | `RG011M1` registration | `NUM`, `SYS_2015`, `RELKEY`, `CCDATE`, `TETDAY`, `CCTIME`, `CCDOC`, `TREAT` | `NUM` links the patient; `RELKEY` connects registration to clinical data. Documented `TREAT` values are `Y` complete, `C` cancelled, and `N` not seen; transition timing and order-level amendments remain `OPEN`. |
 | `CH011M1` encounter | `RELKEY`, `NUM`, `SDATE`, `DOC`, `DR_NAME`, `DR_ID`, `DRUG_ID`, `DRUG_NAME` | `RELKEY` links the encounter to order items; `NUM` links the patient. |
-| `CH012M1` order item | `RELKEY`, `SYS_2015`, `MED1`, `DESC1`, `PRICE1`, `USE_TAMT`, `USE0`, `USE1`, `USE_DAY1`, `U1`, `PATH1`, `SDATE1` | Preserve `(RELKEY, SYS_2015)` as the candidate stable item identity. `MED1` links the item master. `USE_TAMT` is the clinic-confirmed total quantity. |
-| `H_INV` item master | `ITEMN`, `DESC`, `USETYPE`, mapping fields still under validation | `ITEMN` corresponds to `CH012M1.MED1`. |
+| `CH012M1` order item | `RELKEY`, `SYS_2015`, `MED1`, `DESC1`, `PRICE1`, `USE_TAMT`, `USE0`, `USE1`, `USE_DAY1`, `U1`, `PATH1`, `SDATE1` | Preserve `(RELKEY, SYS_2015)` as the candidate stable item identity. `MED1` is the internal item code and links the item master. `USE_TAMT` is the clinic-confirmed total quantity. The rightmost 10 characters of `PRICE1` carry the NHI code for cross-checking. |
+| `H_INV` item master | `ITEMN`, `DESC`, `USETYPE`, `LABNUM` | `ITEMN` corresponds to `CH012M1.MED1`; `LABNUM` is the authoritative NHI code for this clinic. |
 
 `RELKEY` may contain meaningful embedded spaces; preserve the raw value and use trimmed comparison only for the documented join. The exact constructed composition of `RELKEY` is inconsistent in the private documentation, so the public adapter must never synthesize it.
 
 ## Product selections
 
-- Select only the configured target drug mapping. The clinic owner identifies `A059653100` as the target code for publicly funded Eraflu (`易剋冒`) in this workflow.
+- Select the target through the owner-confirmed mapping `CH012M1.MED1 = ERA` → `H_INV.ITEMN = ERA` → `H_INV.LABNUM = A059653100`. Here `ERA` is the internal item code and `A059653100` is the NHI code for publicly funded Eraflu (`易剋冒`).
+- Treat `H_INV.LABNUM` as the authoritative NHI code. Compare it with the rightmost 10 characters of `CH012M1.PRICE1` as a consistency check; preserve the code as text, and quarantine a mismatch instead of silently choosing either value.
 - Store and report a calendar date only; do not invent a time-of-day. The choice between encounter `SDATE`, order `SDATE1`, or another dispensing date remains `OPEN` until validated against a synthetic order and accepted export.
 - Read the HIS `總量` directly from `CH012M1.USE_TAMT`, as confirmed by the clinic owner's live inspection on 2026-10-02. This clinic evidence supersedes ambiguity in the reviewed schema documents; do not derive total quantity from other dose fields or parse it from `PRICE1`. Decimal rules, official-unit conversion, and partial-dispensing behavior still require a synthetic fixture.
 
 ## Remaining field evidence
 
-1. `A059653100` has ten characters while `MED1` is documented as a five-character internal item code. Verify whether the target value is stored in the reimbursement-code segment of `PRICE1`, an `H_INV` mapping field, or another field, then record the internal-code mapping.
+1. Map NHI code `A059653100` to the exact official SMIS material code and record its effective date.
 2. Verify `(RELKEY, SYS_2015)` nullability, reuse, and behavior across edits/cancellations. Existing implementation is precedent, not live evidence.
 3. Verify live `TREAT` transitions and identify order-level amendment behavior without relying on deleted-row restoration.
 4. Confirm the authoritative calendar date plus the `USE_TAMT` unit, decimal rules, and partial-dispensing behavior with synthetic data.
