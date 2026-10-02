@@ -1,0 +1,75 @@
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cer
+*.crt
+*.pfx
+*.p12
+*.jks
+*.keystore
+config.local.*
+*.local.toml
+*.local.yaml
+*.local.yml
+*.local.json
+
+# HIS and patient-bearing source data
+*.dbf
+*.DBF
+*.fpt
+*.FPT
+*.cdx
+*.CDX
+data/
+patient-data/
+
+# Central data stores and recoverable copies
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db-journal
+*.db-wal
+*.db-shm
+backups/
+backup/
+
+# Generated reports and office files
+exports/
+output/
+*.xlsx
+*.xlsm
+*.xls
+!tests/fixtures/official/smis/template.xlsx
+
+# Logs, diagnostics, and local captures
+*.log
+logs/
+diagnostics/
+screenshots/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node, Rust, and Tauri build output
+node_modules/
+dist/
+target/
+src-tauri/target/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
