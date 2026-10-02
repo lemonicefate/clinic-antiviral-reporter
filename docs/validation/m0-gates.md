@@ -2,6 +2,8 @@
 
 Production Excel export stays disabled until every blocking item below has dated evidence, reviewer identity, synthetic fixtures where applicable, and a linked issue.
 
+Tracking issue: [#3 — M0 external HIS, SMIS, authorization, and operations validation](https://github.com/lemonicefate/clinic-antiviral-reporter/issues/3).
+
 ## HIS on-device evidence
 
 - [ ] Validate `(RELKEY, SYS_2015)` as the stable order-item key, including reuse and null behavior. `HIS-pro` documents and uses both, but live reuse/null evidence is still required.
