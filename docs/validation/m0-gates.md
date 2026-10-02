@@ -17,7 +17,8 @@ Tracking issue: [#3 — M0 external HIS, SMIS, authorization, and operations val
 ## Mapping evidence
 
 - [x] Validate the clinic-to-NHI mapping for Eraflu: `CH012M1.MED1 = ERA` → `H_INV.ITEMN = ERA` → `H_INV.LABNUM = A059653100`; cross-check against the rightmost 10 characters of `CH012M1.PRICE1` (owner confirmation, 2026-10-02).
-- [ ] Map NHI code `A059653100` to the exact official SMIS material code and validate mismatch/quarantine behavior with synthetic data.
+- [x] Map NHI code `A059653100` to the exact official SMIS value `DDMTR2018090002:易剋冒膠囊(顆)` (owner confirmation, 2026-10-03; value also present in the preserved official workbook).
+- [ ] Validate clinic/NHI mismatch quarantine and exact SMIS text export with synthetic data.
 - [ ] Record effective dates and the owner of each mapping.
 
 ## Official outpatient export evidence

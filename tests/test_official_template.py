@@ -22,6 +22,12 @@ class OfficialTemplateIntegrityTest(unittest.TestCase):
         sheets = [element.attrib["name"] for element in document.findall("main:sheets/main:sheet", namespace)]
         self.assertEqual(EXPECTED_SHEETS, sheets)
 
+    def test_eraflu_smis_material_value_is_present(self) -> None:
+        expected = "DDMTR2018090002:易剋冒膠囊(顆)".encode()
+        with zipfile.ZipFile(TEMPLATE) as workbook:
+            shared_strings = workbook.read("xl/sharedStrings.xml")
+        self.assertIn(expected, shared_strings)
+
 
 if __name__ == "__main__":
     unittest.main()

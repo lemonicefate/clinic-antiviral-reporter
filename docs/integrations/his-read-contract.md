@@ -30,12 +30,13 @@ The following fields are candidates documented by the reviewed HIS schema materi
 
 - Select the target through the owner-confirmed mapping `CH012M1.MED1 = ERA` → `H_INV.ITEMN = ERA` → `H_INV.LABNUM = A059653100`. Here `ERA` is the internal item code and `A059653100` is the NHI code for publicly funded Eraflu (`易剋冒`).
 - Treat `H_INV.LABNUM` as the authoritative NHI code. Compare it with the rightmost 10 characters of `CH012M1.PRICE1` as a consistency check; preserve the code as text, and quarantine a mismatch instead of silently choosing either value.
+- Export the official SMIS material value exactly as `DDMTR2018090002:易剋冒膠囊(顆)`. Preserve both code and full label as text; do not substitute the NHI code or an abbreviated display name.
 - Store and report a calendar date only; do not invent a time-of-day. The choice between encounter `SDATE`, order `SDATE1`, or another dispensing date remains `OPEN` until validated against a synthetic order and accepted export.
 - Read the HIS `總量` directly from `CH012M1.USE_TAMT`, as confirmed by the clinic owner's live inspection on 2026-10-02. This clinic evidence supersedes ambiguity in the reviewed schema documents; do not derive total quantity from other dose fields or parse it from `PRICE1`. Decimal rules, official-unit conversion, and partial-dispensing behavior still require a synthetic fixture.
 
 ## Remaining field evidence
 
-1. Map NHI code `A059653100` to the exact official SMIS material code and record its effective date.
+1. Record the effective date or version owner for the confirmed NHI-to-SMIS mapping.
 2. Verify `(RELKEY, SYS_2015)` nullability, reuse, and behavior across edits/cancellations. Existing implementation is precedent, not live evidence.
 3. Verify live `TREAT` transitions and identify order-level amendment behavior without relying on deleted-row restoration.
 4. Confirm the authoritative calendar date plus the `USE_TAMT` unit, decimal rules, and partial-dispensing behavior with synthetic data.
