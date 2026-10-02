@@ -20,6 +20,7 @@ Use `CONTEXT.md` as the canonical glossary. This document defines invariants tha
 ## Reporting and export invariants
 
 - One MVP case records one dispensing event. Multiple physical lots are allocations inside that case, and their quantities must sum to the verified reported quantity.
+- For Eraflu, preserve integer `CH012M1.USE_TAMT` as source capsule quantity. Reported quantity initially equals it; reporting staff may auditably replace it with the smaller actual dispensed quantity without changing the source snapshot.
 - Creating a production export first freezes the included case revisions and item rows. Generation then starts from the unmodified official template, reopens and validates the file, computes its digest, and only then marks that export version ready.
 - A ready export moves included, not-yet-uploaded cases to the pending-upload view. Regeneration voids the superseded version; it never overwrites it.
 - Changing a case after an upload declaration requires a reason and produces a correction version. It never changes prior export or platform history.

@@ -7,10 +7,11 @@ Tracking issue: [#3 — M0 external HIS, SMIS, authorization, and operations val
 ## HIS on-device evidence
 
 - [ ] Validate `(RELKEY, SYS_2015)` as the stable order-item key, including reuse and null behavior. `HIS-pro` documents and uses both, but live reuse/null evidence is still required.
-- [ ] Verify live registration `TREAT` transitions (`Y` complete, `C` cancelled, `N` not seen) and identify order-level amendment behavior.
-- [x] Limit the reporting date to a calendar date without time-of-day (owner confirmation, 2026-10-02); the authoritative source date field remains to be verified.
+- [x] Apply the confirmed registration policy: `Y` creates normal work; `C` is retained as `HIS 異動待確認`; an `N` registration with an order is quarantined; only a person excludes a case (owner confirmation, 2026-10-03).
+- [ ] Verify live `TREAT` transitions and identify order-level amendment behavior.
+- [x] Read the reporting date from `CH011M1.SDATE` and retain year/month/day only (owner confirmation, 2026-10-03).
 - [x] Read HIS `總量` directly from `CH012M1.USE_TAMT`; do not derive it from other dose fields or parse it from `PRICE1` (owner live inspection, 2026-10-02).
-- [ ] Validate the `USE_TAMT` unit, decimal rules, official-unit conversion, and partial-dispensing behavior.
+- [x] Treat Eraflu `USE_TAMT` as an integer number of capsules; initialize reported quantity from it and let reporting staff auditably replace it with the smaller actual dispensed quantity (owner confirmation, 2026-10-03).
 - [x] Ignore DBF rows marked deleted as a product rule (owner confirmation, 2026-10-02); quarantine surviving orphan children instead of restoring or mutating HIS data.
 - [ ] Verify CP950/Big5 decoding, partially written records, DBF/FPT/CDX locking, retry, and safe scan load. Measure fresh uncached visibility separately from the configured periodic-scan delay; the owner expects committed writes to be immediately readable.
 
@@ -19,7 +20,7 @@ Tracking issue: [#3 — M0 external HIS, SMIS, authorization, and operations val
 - [x] Validate the clinic-to-NHI mapping for Eraflu: `CH012M1.MED1 = ERA` → `H_INV.ITEMN = ERA` → `H_INV.LABNUM = A059653100`; cross-check against the rightmost 10 characters of `CH012M1.PRICE1` (owner confirmation, 2026-10-02).
 - [x] Map NHI code `A059653100` to the exact official SMIS value `DDMTR2018090002:易剋冒膠囊(顆)` (owner confirmation, 2026-10-03; value also present in the preserved official workbook).
 - [ ] Validate clinic/NHI mismatch quarantine and exact SMIS text export with synthetic data.
-- [ ] Record effective dates and the owner of each mapping.
+- [x] Treat the confirmed mapping as effective from the explicit MVP go-live timestamp until superseded; the administrator owns maintenance (owner confirmation, 2026-10-03).
 
 ## Official outpatient export evidence
 
