@@ -24,6 +24,18 @@ Commands use optimistic revisions and idempotency keys. Each accepted mutation a
 
 The central host backs up the database, configuration, and audit material to a controlled second machine at least hourly. Restore drills must verify both data integrity and service startup. Client update packages are signed, per-user, and rollback-capable.
 
+The HIS share and backup destination are separate seams even when hosted by the same remote computer. The central Windows identity receives read-only permission on the HIS share and write permission only on a dedicated backup share. After case-insensitive normalization of servers, share names, and trailing separators, backup code requires a different SMB share name from the HIS source; a sibling directory on the HIS share is not sufficient separation.
+
+## Configuration
+
+The central service loads one validated settings object from prefixed environment variables. A local `.env` is supported for development, while a Windows service receives the same variables from its service manager or an explicitly configured, ACL-protected file outside the repository; configuration discovery never depends on the process working directory. The tracked `.env.example` contains reserved example addresses only. Production validation rejects placeholders and documentation-only addresses, requires a local absolute state directory and UNC HIS/backup roots on distinct shares, and probes HIS availability through read-only operations only.
+
+`CLINIC_REPORTER_EXPORT_ENABLED` is an additional operational feature flag: false always disables export, while true still requires the persisted M0 evidence gate.
+
+The example loopback bind is for local development. Production clients reach the central host through the configured HTTPS endpoint and firewall allowlist; deployment must not expose an unauthenticated FastAPI listener on all interfaces.
+
+Tauri build-time environment variables are not deployment secrets: Vite bundles them into the client. Each client stores only its central API endpoint, device identity, update state, and non-patient preferences in per-user configuration. HIS and backup paths remain central-only.
+
 ## Interfaces
 
 The versioned OpenAPI surface covers session/device capabilities, HIS refresh, work queues and case detail, typed case commands, export-version creation and download, upload declarations, and per-case platform results. Generated TypeScript bindings are the client boundary.
