@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "公費抗病毒藥劑回報",
+        "visible": false,
         "width": 1080,
         "height": 760,
         "minWidth": 720,
@@ -23,5 +24,16 @@
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-src 'none'"
     }
   },
-  "bundle": { "active": false }
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["TradChinese"],
+        "installerHooks": "installer-hooks.nsh"
+      }
+    }
+  }
 }

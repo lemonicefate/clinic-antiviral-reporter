@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod desktop;
+mod startup;
+
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
@@ -270,6 +273,11 @@ async fn central_request(mut request: CentralRequest) -> Result<CentralResponse,
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            desktop::show_for_launch(app, args.into_iter());
+        }))
+        .setup(desktop::setup)
+        .on_window_event(desktop::window_event)
         .invoke_handler(tauri::generate_handler![
             connection_settings,
             configure_connection,

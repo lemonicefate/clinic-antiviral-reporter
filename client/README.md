@@ -6,7 +6,10 @@ The next slice provides a synthetic physician queue, exact chart search, and
 explicit case detail selection and confirmed reason editing with conflict review.
 Reporting devices also receive date/status/exception filters, quantity and lot
 allocation editing, bulk same-lot replacement, exclusion/reinclusion and case history.
-Tray/startup behavior, signed installers, and updates remain pending.
+Native close-to-tray, explicit quit, single-instance activation, configurable
+current-user login startup, and a per-user NSIS test installer are implemented.
+See [desktop lifecycle evidence](../docs/validation/desktop-lifecycle-progress.md).
+Signed updates and retained rollback remain pending; #21 is not complete.
 
 ## Development
 
