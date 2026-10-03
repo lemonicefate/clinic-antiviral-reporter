@@ -113,3 +113,28 @@ outside Git, never opens HIS paths, and does not certify native Windows transpor
 Before upgrading an existing synthetic v2 environment, stop it and retain its
 entire state directory. v1/v2 histories survive v3 migration. Older binaries refuse
 v3; keep v3 intact and use a compatible forward fix rather than deleting case tables.
+
+## Medication reasons (schema v4)
+
+`GET /api/v1/reason-options` returns the 37 complete values from the preserved
+official workbook's code sheet, E2:E38. The service verifies its pinned SHA-256;
+deploy the original fixture at its repository-relative path with the service.
+These values do not establish eligibility or conditional-field rules.
+
+`POST /api/v1/cases/{case_id}/reason` requires physician or reporting capability,
+an exact option, explicit `patientConfirmed: true`, requestId, and the displayed
+revision. Administrator capability alone does not grant clinical editing.
+The revision, reason, audit, and command result commit together. A conflict returns
+the current reason/revision. The client requires a fresh read and renewed patient
+confirmation before saving. Reason-complete cases remain unfinished pending reporting
+reconciliation; `awaitingReason` is distinct from total unfinished/overdue counts.
+
+Schema v4 adds a nullable reason column; v1/v2/v3 upgrade paths retain original
+source facts and history. Before migration, stop and preserve the complete state
+directory. Earlier binaries refuse v4: retain it and deploy a compatible forward
+fix. Never roll back by discarding reasons or audit history.
+
+Run `python -m scripts.run_acceptance_checks` after building the client for isolated
+real-HTTPS/browser queue and two-client reason checks. The runner starts and stops
+only its own temporary synthetic service. Its bridge models native IPC and does
+not replace Windows deployment acceptance.

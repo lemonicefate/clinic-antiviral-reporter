@@ -55,6 +55,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
                     }
                   ],
                   "title": "Response Createsession"
@@ -335,6 +338,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
                     }
                   ],
                   "title": "Response Createpairing"
@@ -469,6 +475,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
                     }
                   ],
                   "title": "Response Revokedevice"
@@ -555,6 +564,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
                     }
                   ],
                   "title": "Response Refreshsyntheticorders"
@@ -655,6 +667,167 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/QueueView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reason-options": {
+      "get": {
+        "summary": "Options",
+        "operationId": "getReasonOptions",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReasonOptionsView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/reason": {
+      "post": {
+        "summary": "Save Reason",
+        "operationId": "saveReason",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReason"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    }
+                  ],
+                  "title": "Response Savereason"
                 }
               }
             }
@@ -844,9 +1017,23 @@
           },
           "status": {
             "type": "string",
-            "const": "awaiting_reason",
+            "enum": [
+              "awaiting_reason",
+              "awaiting_reconciliation"
+            ],
             "title": "Status",
             "default": "awaiting_reason"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           },
           "synthetic": {
             "type": "boolean",
@@ -945,9 +1132,23 @@
           },
           "status": {
             "type": "string",
-            "const": "awaiting_reason",
+            "enum": [
+              "awaiting_reason",
+              "awaiting_reconciliation"
+            ],
             "title": "Status",
             "default": "awaiting_reason"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           },
           "synthetic": {
             "type": "boolean",
@@ -1176,6 +1377,10 @@
             "type": "integer",
             "title": "Overdue"
           },
+          "awaitingReason": {
+            "type": "integer",
+            "title": "Awaitingreason"
+          },
           "physicians": {
             "items": {
               "type": "string"
@@ -1201,12 +1406,40 @@
           "items",
           "total",
           "overdue",
+          "awaitingReason",
           "physicians",
           "physician",
           "syntheticRefreshEnabled",
           "refreshRevision"
         ],
         "title": "QueueView"
+      },
+      "ReasonOptionsView": {
+        "properties": {
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "templateSha256": {
+            "type": "string",
+            "title": "Templatesha256"
+          },
+          "officialRulesVerified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Officialrulesverified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "values",
+          "templateSha256"
+        ],
+        "title": "ReasonOptionsView"
       },
       "RefreshCommand": {
         "properties": {
@@ -1286,6 +1519,39 @@
           "reason"
         ],
         "title": "RevokeDevice"
+      },
+      "SaveReason": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "patientConfirmed": {
+            "type": "boolean",
+            "title": "Patientconfirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "reason",
+          "patientConfirmed"
+        ],
+        "title": "SaveReason"
       },
       "SessionView": {
         "properties": {

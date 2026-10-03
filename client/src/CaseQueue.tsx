@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { clinicApi, requireData } from "./api";
 import type { Session } from "./api";
 import type { components } from "./generated/api";
+import { ReasonEditor } from "./ReasonEditor";
 
 type Queue = components["schemas"]["QueueView"];
 type Detail = components["schemas"]["CaseDetail"];
@@ -58,13 +59,17 @@ export function CaseQueue({
           },
         }),
       );
-      if (generation.current === current) setQueue(data);
+      if (generation.current === current) {
+        setQueue(data);
+        return true;
+      }
     } catch {
       if (generation.current === current)
         setError("清單讀取失敗，請重新查詢；無法連線時改用紙本流程。");
     } finally {
       if (generation.current === current) setBusy(false);
     }
+    return false;
   }
 
   async function select(caseId: string) {
@@ -194,6 +199,7 @@ export function CaseQueue({
       {error && <p role="alert">{error}</p>}
       {queue && (
         <>
+          <p>待填理由 {queue.awaitingReason} 案；已填理由仍須完成回報核對。</p>
           <p>
             符合條件 {queue.total} 案 · 跨日未完成 {queue.overdue}{" "}
             案（優先顯示）
@@ -203,7 +209,7 @@ export function CaseQueue({
           ) : (
             <div className="table-scroll">
               <table>
-                <caption>待填理由案件；同日排列不代表開立先後</caption>
+                <caption>未完成案件；同日排列不代表開立先後</caption>
                 <thead>
                   <tr>
                     <th>病人／病歷號</th>
@@ -244,7 +250,9 @@ export function CaseQueue({
                             <br />
                           </>
                         )}
-                        待填理由
+                        {item.status === "awaiting_reason"
+                          ? "待填理由"
+                          : "理由已填，待回報核對"}
                       </td>
                       <td>
                         <button onClick={() => void select(item.caseId)}>
@@ -269,7 +277,7 @@ export function CaseQueue({
             · 出生日期 {detail.birthDate}
           </p>
           <p>
-            给藥日期 {detail.reportingDate} · 醫師 {detail.physician} · 醫令{" "}
+            給藥日期 {detail.reportingDate} · 醫師 {detail.physician} · 醫令{" "}
             {detail.sourceOrder}
           </p>
           <p>
@@ -282,9 +290,28 @@ export function CaseQueue({
               同病人同日另有醫令，請確認這一筆；系統不會自動合併或代選。
             </p>
           )}
-          <p>
-            請核對姓名、病歷號、出生日期與來源醫令。此階段提供案件查閱；用藥理由填寫將於下一步提供。
-          </p>
+          <p>目前理由：{detail.reason ?? "尚未填寫"}</p>
+          {session.capabilities.some(
+            (c) => c === "physician" || c === "reporting",
+          ) && (
+            <ReasonEditor
+              key={`${detail.caseId}:${detail.revision}`}
+              api={api}
+              detail={detail}
+              onReload={setDetail}
+              onSaved={() => {
+                const expected = generation.current + 1;
+                void load().then((ok) => {
+                  if (generation.current === expected)
+                    setStatus(
+                      ok
+                        ? "用藥理由已儲存，清單已更新。"
+                        : "用藥理由已儲存；清單讀取失敗，請重新查詢。",
+                    );
+                });
+              }}
+            />
+          )}
           <details>
             <summary>原始合成來源（{detail.snapshots.length} 版）</summary>
             {detail.snapshots.map((snapshot) => (

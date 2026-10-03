@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from service.settings import Settings
 from service.storage import saved_result, save_result
+from service.reason_options import reason_options, TEMPLATE_SHA256
 
 
 def clinic_today() -> date:
@@ -34,6 +35,17 @@ class RefreshView(BaseModel):
     synthetic: Literal[True] = True
 
 
+class SaveReason(RefreshCommand):
+    reason: str = Field(min_length=1, max_length=1000)
+    patientConfirmed: bool = Field(strict=True)
+
+
+class ReasonOptionsView(BaseModel):
+    values: list[str]
+    templateSha256: str
+    officialRulesVerified: Literal[False] = False
+
+
 class CaseView(BaseModel):
     caseId: str
     revision: int
@@ -48,7 +60,8 @@ class CaseView(BaseModel):
     material: str
     overdue: bool
     duplicateConcern: bool
-    status: Literal["awaiting_reason"] = "awaiting_reason"
+    status: Literal["awaiting_reason", "awaiting_reconciliation"] = "awaiting_reason"
+    reason: str | None = None
     synthetic: Literal[True] = True
     liveIdentityVerified: Literal[False] = False
 
@@ -67,6 +80,7 @@ class QueueView(BaseModel):
     items: list[CaseView]
     total: int
     overdue: int
+    awaitingReason: int
     physicians: list[str]
     physician: str
     syntheticRefreshEnabled: bool
@@ -109,6 +123,8 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
         "material": "DDMTR2018090002:易剋冒膠囊(顆)",
         "overdue": reporting_date < clinic_today().isoformat(),
         "duplicateConcern": (facts["PD011M1.NUM"], reporting_date) in duplicates,
+        "reason": row["reason"],
+        "status": "awaiting_reconciliation" if row["reason"] else "awaiting_reason",
     }
 
 
@@ -150,7 +166,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                 if db.execute("SELECT 1 FROM report_cases WHERE source_key=?", (key,)).fetchone():
                     continue
                 case_id = str(uuid4())
-                db.execute("INSERT INTO report_cases VALUES (?,?,1,?)", (case_id, key, 10))
+                db.execute("INSERT INTO report_cases(id,source_key,revision,reported_quantity) VALUES (?,?,1,?)", (case_id, key, 10))
                 db.execute("INSERT INTO source_snapshots(case_id,captured_at,facts) VALUES (?,?,?)",
                            (case_id, time.time(), json.dumps(facts, ensure_ascii=False)))
                 db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
@@ -183,9 +199,49 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                        -date.fromisoformat(item["reportingDate"]).toordinal(), item["sourceOrder"]))
             state = db.execute("SELECT revision FROM ingestion_state WHERE id='synthetic-v1'").fetchone()
             return {"items": items, "total": len(items), "overdue": sum(item["overdue"] for item in items),
+                    "awaitingReason": sum(item["reason"] is None for item in items),
                     "physicians": sorted({facts["CH011M1.DOC"] for _, facts in rows}), "physician": selected,
                     "syntheticRefreshEnabled": settings.synthetic_enabled and settings.environment == "development",
                     "refreshRevision": state["revision"] if state else 0}
+
+    @app.get("/api/v1/reason-options", response_model=ReasonOptionsView, operation_id="getReasonOptions")
+    def options(request: Request, authorization: Annotated[str | None, Header()] = None,
+                x_session_id: Annotated[str | None, Header()] = None):
+        with request.app.state.store.transaction() as db:
+            permitted(db, authorization, x_session_id)
+        return {"values": reason_options(), "templateSha256": TEMPLATE_SHA256, "officialRulesVerified": False}
+
+    @app.post("/api/v1/cases/{case_id}/reason", response_model=mutation_result, operation_id="saveReason")
+    def save_reason(case_id: UUID, command: SaveReason, request: Request,
+                    authorization: Annotated[str | None, Header()] = None,
+                    x_session_id: Annotated[str | None, Header()] = None):
+        with request.app.state.store.transaction() as db:
+            device, session = permitted(db, authorization, x_session_id)
+            if not set(json.loads(device["capabilities"])) & {"physician", "reporting"}:
+                raise HTTPException(403, "Physician or reporting capability required")
+            previous = saved_result(db, device["id"], str(command.requestId))
+            if previous is not None:
+                return previous
+            if command.patientConfirmed is not True or command.reason not in reason_options():
+                raise HTTPException(422, "Confirm the selected patient and select an official reason option")
+            row = db.execute("SELECT * FROM report_cases WHERE id=?", (str(case_id),)).fetchone()
+            if row is None:
+                raise HTTPException(404, "Case not found")
+            if row["revision"] != command.expectedRevision:
+                raise HTTPException(409, {"currentRevision": row["revision"],
+                                         "differences": {"reason": row["reason"]}})
+            db.execute("UPDATE report_cases SET reason=?,revision=revision+1 WHERE id=?",
+                       (command.reason, str(case_id)))
+            snapshot = db.execute("SELECT MAX(sequence) FROM source_snapshots WHERE case_id=?", (str(case_id),)).fetchone()[0]
+            db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
+                       ("reason_saved", device["id"], session["operator"], time.time(), json.dumps({
+                           "caseId": str(case_id), "sourceSnapshot": snapshot, "source": "human",
+                           "before": row["reason"], "after": command.reason,
+                           "revisionBefore": row["revision"], "revisionAfter": row["revision"] + 1,
+                           "patientConfirmed": True}, ensure_ascii=False)))
+            rows = _case_rows(db)
+            updated, facts = next((r, f) for r, f in rows if r["id"] == str(case_id))
+            return save_result(db, device["id"], str(command.requestId), _view(updated, facts, _duplicates(rows)))
 
     @app.get("/api/v1/cases/{case_id}", response_model=CaseDetail, operation_id="getCase")
     def detail(case_id: UUID, request: Request,

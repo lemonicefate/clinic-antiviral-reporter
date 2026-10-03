@@ -139,11 +139,12 @@ PAGE = '''<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>本�
 <li><strong>預設清單：</strong>B 輸入 SYN-DR-A 連線，應有 3 案；跨日未完成 1 案，病歷號 SYN-0002 優先。SYN-0001 應有 2 案，各有不同醫令及同日多筆提醒。</li>
 <li><strong>醫師篩選：</strong>選 SYN-DR-B，按「查詢清單」，應有 1 案 SYN-0003。選全部醫師再查詢應有 4 案。</li>
 <li><strong>完整病歷號：</strong>在 SYN-DR-B 篩選下輸入 SYN-0001 並查詢，應跨醫師找到 2 案；改輸入 0001 應為 0 案。清空病歷號可回醫師篩選。</li>
-<li><strong>逐案核對：</strong>搜尋 SYN-0001，點第一筆「核對此案」。焦點應到「核對案件」，可核對姓名、病歷號、出生日期、醫師及獨立來源醫令；來源量與回報量皆為 10 顆。另一筆醫令不應被自動代選。可展開原始來源；理由填寫屬下一張票。</li>
+<li><strong>逐案核對：</strong>搜尋 SYN-0001，點第一筆「核對此案」。焦點應到「核對案件」，可核對姓名、病歷號、出生日期、醫師及獨立來源醫令；來源量與回報量皆為 10 顆。另一筆醫令不應被自動代選。可展開原始來源。</li>
 <li><strong>刷新去重：</strong>A 在案件清單選全部醫師並查詢，按「刷新合成來源」。應顯示新增 0、未變 4，總數仍為 4。B 不應有刷新合成來源按鈕。</li>
 <li><strong>斷線與恢復：</strong>B 保持案件詳情開啟，再按下方「停止測試中央」。約十秒內 B 應清除姓名、清單及詳情，回連線頁並提示紙本。按「啟動測試中央」，B 重新連線應恢復 3 案且跨日案仍在。</li>
 <li><strong>操作感受：</strong>請用 Tab／Enter 選案與搜尋，將視窗縮至平常診間寬度，確認文字可辨識、不會誤選另一筆；回報任何不好操作的位置。</li>
-</ol><p>看到結果不符時，告訴我「第幾步、按了什麼、看到什麼」。不需要看程式碼。</p></section>
+</ol><p>上述可自動判定的流程已由助理測試，不必重做。看到結果不符時，告訴我「第幾步、按了什麼、看到什麼」。</p></section>
+<section><h2>用藥理由與衝突（已自動驗證）</h2><p>B 醫師開啟案件後，選取官方用藥對象，勾選核對病人及醫令，再按「儲存用藥理由」。待填理由筆數應減少，案件仍待回報核對，不代表可匯出。</p><p>若要觀察衝突，可同時開兩個 B 分頁並先讀取同一案；第一個儲存後，第二個修改會顯示中央最新理由及本次選取，必須重新讀取、核對後才能再存。未存表單在斷線時清除。</p></section>
 <section><h2>停機練習控制</h2><p id="status" role="status">讀取中…</p>
 <button onclick="control('stop')">停止測試中央</button><button onclick="control('start')">啟動測試中央</button>
 <p>只控制本次測試中央；關閉此分頁不會停止它。測完可按「結束整個測試環境」。</p>
@@ -222,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = args['request']
                 path = req['path']
                 import re
-                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|cases|cases/[a-f0-9-]+)',urlsplit(path).path):
+                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|cases|cases/[a-f0-9-]+|cases/[a-f0-9-]+/reason)',urlsplit(path).path):
                     raise ValueError()
                 if req['method'] not in ('GET','POST'): raise ValueError()
                 body = req.get('body')

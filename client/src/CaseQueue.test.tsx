@@ -33,6 +33,11 @@ test("physician explicitly selects a tied order and outage clears patient conten
       };
     if (command === "configure_connection") return;
     const { request } = args as { request: { path: string } };
+    if (request.path === "/api/v1/reason-options")
+      return {
+        status: 200,
+        body: JSON.stringify({ values: ["23:未滿5歲及65歲以上之類流感患者"] }),
+      };
     if (request.path === "/api/v1/sessions")
       return {
         status: 200,

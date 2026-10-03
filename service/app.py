@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from service.settings import Settings
 from service.storage import Store, digest, saved_result, save_result
-from service.cases import RefreshView, register_case_routes
+from service.cases import CaseView, RefreshView, register_case_routes
 
 
 class Command(BaseModel):
@@ -78,7 +78,7 @@ class AuditView(BaseModel):
 
 # requestId identifies the original command, even when a caller accidentally
 # retries it on another mutation route. Document every possible replay shape.
-MutationResult = SessionView | PairingView | DeviceView | RefreshView
+MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView
 
 
 def create_app(settings: Settings) -> FastAPI:

@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from uuid import uuid4
 from dataclasses import replace
+import sqlite3
 
 from fastapi.testclient import TestClient
 
@@ -12,6 +13,91 @@ from service.settings import Settings
 
 
 class SyntheticQueueTest(unittest.TestCase):
+    def reason_context(self, capability):
+        self.client.post("/api/v1/synthetic/refresh", headers=self.headers,
+                         json={"requestId": str(uuid4()), "expectedRevision": 0})
+        case = self.client.get("/api/v1/cases", headers=self.headers).json()["items"][0]
+        key = secrets.token_urlsafe(32)
+        grant = self.client.post("/api/v1/pairings", headers=self.headers, json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": [capability]}).json()
+        self.client.post("/api/v1/devices/enroll", json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "pairingCode": grant["pairingCode"],
+            "credential": key, "name": "synthetic-reason-workstation"})
+        return case, self.session(key, "SYN-DR-A")
+
+    def test_reporting_revision_conflict_does_not_overwrite_first_reason(self):
+        case, editor = self.reason_context("reporting")
+        route = f'/api/v1/cases/{case["caseId"]}/reason'
+        options = self.client.get("/api/v1/reason-options", headers=editor).json()["values"]
+        first = {"requestId": str(uuid4()), "expectedRevision": 1, "reason": options[0], "patientConfirmed": True}
+        self.assertEqual(self.client.post(route, headers=self.headers, json=first).status_code, 403)
+        self.assertEqual(self.client.post(route, headers=editor, json=first).status_code, 200)
+        second = first | {"requestId": str(uuid4()), "reason": options[1]}
+        conflict = self.client.post(route, headers=editor, json=second)
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.json()["detail"], {"currentRevision": 2, "differences": {"reason": options[0]}})
+        detail = self.client.get(f'/api/v1/cases/{case["caseId"]}', headers=editor).json()
+        self.assertEqual(detail["reason"], options[0])
+        revised = self.client.post(route, headers=editor, json=second | {"expectedRevision": 2})
+        self.assertEqual(revised.json()["revision"], 3)
+        self.assertEqual(revised.json()["reason"], options[1])
+        self.assertEqual(len(detail["snapshots"]), 1)
+
+    def test_reason_audit_failure_rolls_back_and_retry_is_safe(self):
+        case, editor = self.reason_context("physician")
+        route = f'/api/v1/cases/{case["caseId"]}/reason'
+        command = {"requestId": str(uuid4()), "expectedRevision": 1,
+                   "reason": "23:未滿5歲及65歲以上之類流感患者", "patientConfirmed": True}
+        with self.client.app.state.store.transaction() as db:
+            db.execute("CREATE TRIGGER synthetic_reason_failure BEFORE INSERT ON audit_events "
+                       "WHEN NEW.kind='reason_saved' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.client.post(route, headers=editor, json=command)
+        unchanged = self.client.get(f'/api/v1/cases/{case["caseId"]}', headers=editor).json()
+        self.assertEqual(unchanged["revision"], 1)
+        self.assertIsNone(unchanged["reason"])
+        with self.client.app.state.store.transaction() as db:
+            db.execute("DROP TRIGGER synthetic_reason_failure")
+        first = self.client.post(route, headers=editor, json=command)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(self.client.post(route, headers=editor, json=command).json(), first.json())
+        events = self.client.get("/api/v1/audit", headers=self.headers).json()
+        self.assertEqual(sum(e["kind"] == "reason_saved" for e in events), 1)
+
+    def test_reason_requires_patient_confirmation_and_records_exact_option_once(self):
+        self.client.post("/api/v1/synthetic/refresh", headers=self.headers,
+                         json={"requestId": str(uuid4()), "expectedRevision": 0})
+        case = self.client.get("/api/v1/cases", headers=self.headers).json()["items"][0]
+        grant = self.client.post("/api/v1/pairings", headers=self.headers, json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["physician"]}).json()
+        key = secrets.token_urlsafe(32)
+        self.client.post("/api/v1/devices/enroll", json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "pairingCode": grant["pairingCode"],
+            "credential": key, "name": "synthetic-reason-device"})
+        doctor = self.session(key, "SYN-DR-A")
+        options = self.client.get("/api/v1/reason-options", headers=doctor)
+        self.assertEqual(options.status_code, 200, options.text)
+        reason = "23:未滿5歲及65歲以上之類流感患者"
+        self.assertIn(reason, options.json()["values"])
+        command = {"requestId": str(uuid4()), "expectedRevision": 1, "reason": reason,
+                   "patientConfirmed": False}
+        route = f'/api/v1/cases/{case["caseId"]}/reason'
+        self.assertEqual(self.client.post(route, headers=doctor, json=command).status_code, 422)
+        command["patientConfirmed"] = True
+        first = self.client.post(route, headers=doctor, json=command)
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(first.json()["reason"], reason)
+        self.assertEqual(first.json()["revision"], 2)
+        self.assertEqual(self.client.post(route, headers=doctor, json=command).json(), first.json())
+        queue = self.client.get("/api/v1/cases", headers=doctor).json()
+        self.assertEqual(queue["awaitingReason"], 2)
+        events = self.client.get("/api/v1/audit", headers=self.headers).json()
+        changes = [e for e in events if e["kind"] == "reason_saved"]
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0]["changes"]["before"], None)
+        self.assertEqual(changes[0]["changes"]["after"], reason)
+        self.assertEqual(changes[0]["operator"], "SYN-DR-A")
+
     def setUp(self):
         directory = self.enterContext(tempfile.TemporaryDirectory())
         self.settings = Settings.from_environment({

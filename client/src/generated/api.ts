@@ -157,6 +157,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reason-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Options */
+        get: operations["getReasonOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}/reason": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save Reason */
+        post: operations["saveReason"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cases/{case_id}": {
         parameters: {
             query?: never;
@@ -232,9 +266,11 @@ export interface components {
             /**
              * Status
              * @default awaiting_reason
-             * @constant
+             * @enum {string}
              */
-            status: "awaiting_reason";
+            status: "awaiting_reason" | "awaiting_reconciliation";
+            /** Reason */
+            reason?: string | null;
             /**
              * Synthetic
              * @default true
@@ -287,9 +323,11 @@ export interface components {
             /**
              * Status
              * @default awaiting_reason
-             * @constant
+             * @enum {string}
              */
-            status: "awaiting_reason";
+            status: "awaiting_reason" | "awaiting_reconciliation";
+            /** Reason */
+            reason?: string | null;
             /**
              * Synthetic
              * @default true
@@ -376,6 +414,8 @@ export interface components {
             total: number;
             /** Overdue */
             overdue: number;
+            /** Awaitingreason */
+            awaitingReason: number;
             /** Physicians */
             physicians: string[];
             /** Physician */
@@ -384,6 +424,19 @@ export interface components {
             syntheticRefreshEnabled: boolean;
             /** Refreshrevision */
             refreshRevision: number;
+        };
+        /** ReasonOptionsView */
+        ReasonOptionsView: {
+            /** Values */
+            values: string[];
+            /** Templatesha256 */
+            templateSha256: string;
+            /**
+             * Officialrulesverified
+             * @default false
+             * @constant
+             */
+            officialRulesVerified: false;
         };
         /** RefreshCommand */
         RefreshCommand: {
@@ -421,6 +474,20 @@ export interface components {
             expectedRevision: number;
             /** Reason */
             reason: string;
+        };
+        /** SaveReason */
+        SaveReason: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Reason */
+            reason: string;
+            /** Patientconfirmed */
+            patientConfirmed: boolean;
         };
         /** SessionView */
         SessionView: {
@@ -491,7 +558,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
                 };
             };
             /** @description Validation Error */
@@ -623,7 +690,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
                 };
             };
             /** @description Validation Error */
@@ -694,7 +761,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
                 };
             };
             /** @description Validation Error */
@@ -730,7 +797,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
                 };
             };
             /** @description Validation Error */
@@ -766,6 +833,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueueView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getReasonOptions: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReasonOptionsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saveReason: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveReason"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
                 };
             };
             /** @description Validation Error */

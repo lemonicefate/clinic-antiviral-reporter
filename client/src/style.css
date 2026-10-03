@@ -317,3 +317,13 @@ caption {
   padding: 12px 0;
   color: #526678;
 }
+.case-detail select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.selected-reason {
+  overflow-wrap: anywhere;
+}
+.patient-confirmation { display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; }
+.patient-confirmation input { width: 20px; height: 20px; padding: 0; margin-top: 3px; flex: none; }

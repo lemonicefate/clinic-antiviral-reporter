@@ -44,5 +44,7 @@ jobs:
       - name: Build Windows desktop executable
         run: npm run tauri build -- --debug --no-bundle
         working-directory: client
+      - name: Verify browser journeys against isolated real HTTPS service
+        run: python -m scripts.run_acceptance_checks
       - name: Check generated contract drift
         run: git diff --exit-code -- service/openapi/v1.json client/src/generated/api.ts

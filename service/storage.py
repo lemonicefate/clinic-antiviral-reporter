@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 3:
+            if version > 4:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -82,6 +82,13 @@ class Store:
                     );
                     CREATE INDEX snapshots_case ON source_snapshots(case_id,sequence);
                     PRAGMA user_version=3;
+                    COMMIT;
+                """)
+            if version < 4:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE report_cases ADD COLUMN reason TEXT;
+                    PRAGMA user_version=4;
                     COMMIT;
                 """)
         except Exception:
