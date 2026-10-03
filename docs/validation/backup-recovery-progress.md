@@ -153,8 +153,10 @@ hashes or delete audit history to bypass this protection.
 ## Migration and rollback
 
 The v9-to-v10 migration adds backup history/state without replacing case history.
-Tests construct source schemas v1 through v9 and exercise their upgrade through
-the current service, including v9 outside-completion history. Older binaries that
+At delivery of this backup slice, tests constructed source schemas v1 through v9,
+including v9 outside-completion history. The later
+[release catalog slice](desktop-release-progress.md) extends migration coverage
+through v10 and advances the current schema to v11. Older binaries that
 cannot read v10 must not open this state. Never change `user_version`, delete tables,
 or copy an old database over a newer one to downgrade. Preserve the migrated state
 and use a compatible binary or a reviewed forward fix. Any older isolated restore

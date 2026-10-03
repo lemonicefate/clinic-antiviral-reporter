@@ -21,6 +21,7 @@ from service.scanner import Scanner, ScanView
 from service.mappings import MappingView, register_mapping_routes
 from service.export_preview import register_export_routes
 from service.backups import Backups, BackupView, register_backup_routes
+from service.client_releases import register_client_release_routes
 
 
 class Command(BaseModel):
@@ -277,4 +278,5 @@ def create_app(settings: Settings, tls_files: tuple[Path, Path] | None = None) -
     register_mapping_routes(app, active_session, MutationResult)
     register_export_routes(app, settings, active_session, MutationResult)
     register_backup_routes(app, active_session, MutationResult)
+    register_client_release_routes(app, settings, authorized)
     return app

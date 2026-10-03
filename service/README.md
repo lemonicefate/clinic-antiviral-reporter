@@ -4,7 +4,9 @@ Python 3.12/FastAPI central service. Issue #7 is in progress: device/session API
 and central settings are implemented alongside a Windows device-management client.
 Deployment acceptance remains open. The #8 slice adds a synthetic case queue and
 detail API. #12 adds an explicitly enabled synthetic-file scanner; no live HIS
-reader or production export is enabled. The current schema is v10; see
+reader or production export is enabled. The current schema is v11; see
+[desktop release distribution](../docs/validation/desktop-release-progress.md) for
+immutable update packages and catalog migration,
 [backup and isolated restore](../docs/validation/backup-recovery-progress.md) for
 backup configuration, recovery procedures, retention and deployment gates, and
 [outage recovery](../docs/validation/outage-recovery-progress.md) for administrator
@@ -184,3 +186,13 @@ latest snapshot, resolution and reason. Quarantine diagnostics are reporting/adm
 only; valid recovery still requires review. Human command audits reference the
 adopted source. See `docs/validation/source-review-progress.md` for migration,
 recovery and evidence. Production HIS and export gates remain unchanged.
+
+## Desktop release distribution (schema v11)
+
+The offline `stage-release` command publishes immutable desktop installers with
+request replay, catalog revision checks and transactional audit. Active devices
+can read version metadata and download retained installers without an operator
+session. Signature verification and installation belong to the pending native
+update workflow; distribution alone does not establish installer trust.
+See [desktop release progress](../docs/validation/desktop-release-progress.md) for
+publication commands, migration/recovery, automated evidence and remaining #21 work.

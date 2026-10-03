@@ -95,7 +95,7 @@ def check_database(path: Path) -> None:
     try:
         if db.execute("PRAGMA integrity_check").fetchall() != [("ok",)] or db.execute("PRAGMA foreign_key_check").fetchall():
             raise BackupError("invalid_database")
-        if db.execute("PRAGMA user_version").fetchone()[0] > 10:
+        if db.execute("PRAGMA user_version").fetchone()[0] > 11:
             raise BackupError("unsupported_schema")
     finally:
         db.close()

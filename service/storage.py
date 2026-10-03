@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 10:
+            if version > 11:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -184,6 +184,17 @@ class Store:
                         reason TEXT NOT NULL, diagnostic TEXT
                     );
                     PRAGMA user_version=10;
+                    COMMIT;
+                """)
+            if version < 11:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE client_releases (
+                        revision INTEGER PRIMARY KEY, version TEXT NOT NULL UNIQUE,
+                        sha256 TEXT NOT NULL, size INTEGER NOT NULL,
+                        signature TEXT NOT NULL, notes TEXT NOT NULL
+                    );
+                    PRAGMA user_version=11;
                     COMMIT;
                 """)
         except Exception:

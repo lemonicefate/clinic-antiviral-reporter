@@ -115,6 +115,10 @@ or removing a test installation, so Windows does not retain a stale startup path
 
 ## Remaining #21 work
 
+The central release catalog and authorized download API are now implemented;
+see [release distribution progress](desktop-release-progress.md) for its separate
+evidence and maintenance procedure.
+
 This is not the completed signed-update deliverable. Startup update checks,
 confirmation, signature validation, retained rollback packages, corrupt/interrupted
 update rehearsal, and central Windows-service startup/recovery documentation remain

@@ -99,8 +99,8 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.fail("Future schema should not start")
             self.assertEqual(path.read_bytes(), original)
 
-    def test_version_three_through_nine_history_survives_migration(self):
-        for version in (3, 4, 5, 6, 7, 8, 9):
+    def test_version_three_through_ten_history_survives_migration(self):
+        for version in (3, 4, 5, 6, 7, 8, 9, 10):
             with tempfile.TemporaryDirectory() as directory:
                 credential = secrets.token_urlsafe(32)
                 case_id = "11111111-1111-4111-8111-111111111111"
@@ -173,7 +173,7 @@ class MigrationAcceptanceTest(unittest.TestCase):
                         ALTER TABLE scan_runs ADD COLUMN mapping_revision INTEGER NOT NULL DEFAULT 0;
                         PRAGMA user_version=8;
                     """)
-                if version == 9:
+                if version >= 9:
                     db.executescript("""
                         ALTER TABLE scan_runs ADD COLUMN outage_recovery INTEGER NOT NULL DEFAULT 0;
                         CREATE TABLE scan_case_observations(scan_job_id TEXT,case_id TEXT,source_snapshot INTEGER,
@@ -185,13 +185,22 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     db.execute("UPDATE report_cases SET excluded=0")
                     db.execute("INSERT INTO outside_completions VALUES (?,1,'synthetic-old-job','v3-admin','SYN-DR-A',101,'synthetic paper completion')", (case_id,))
                     db.commit()
+                if version >= 10:
+                    db.executescript("""
+                        CREATE TABLE backup_state(id INTEGER PRIMARY KEY,revision INTEGER NOT NULL,current_job TEXT);
+                        INSERT INTO backup_state VALUES (1,0,NULL);
+                        CREATE TABLE backup_runs(id TEXT PRIMARY KEY,status TEXT NOT NULL,
+                            requested_at REAL NOT NULL,snapshot_at REAL,finished_at REAL,
+                            device_id TEXT NOT NULL,operator TEXT NOT NULL,reason TEXT NOT NULL,diagnostic TEXT);
+                        PRAGMA user_version=10;
+                    """)
                 db.close()
                 with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
                     detail = client.get(f"/api/v1/cases/{case_id}", headers={
                         "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
                     self.assertEqual(detail["snapshots"][0]["raw"], facts)
                     self.assertEqual(detail["revision"], 1)
-                    if version == 9:
+                    if version >= 9:
                         self.assertEqual(detail["status"], "outside_completed")
                         self.assertEqual(detail["outsideCompletion"]["reason"], "synthetic paper completion")
                         self.assertEqual(detail["outsideCompletion"]["recordedAt"], 101)
@@ -201,6 +210,9 @@ class MigrationAcceptanceTest(unittest.TestCase):
                         "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
                     self.assertEqual(backup["status"], "disabled")
                     self.assertTrue(backup["rpoBreached"])
+                    releases = client.get("/api/v1/client-releases/current", headers={
+                        "Authorization": "Bearer " + credential}).json()
+                    self.assertEqual(releases, {"revision": 0, "release": None})
                     self.assertEqual(detail["reportedQuantity"], 10)
                     self.assertEqual(detail["reason"], "23:未滿5歲及65歲以上之類流感患者" if version >= 4 else None)
                     self.assertEqual(detail["lots"], [{"lot": "SYN-OLD-LOT", "quantity": 10}] if version >= 5 else [])
