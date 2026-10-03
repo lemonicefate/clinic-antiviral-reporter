@@ -97,31 +97,38 @@ software records it as a contract. An unexplained response remains `OPEN`.
 
 ## Execution procedure
 
-1. Confirm that the operator is authorized to use the SMIS test or approved
+1. Prepare a private intake kit outside Git. From the repository root, run
+   `python -m scripts.prepare_smis_contract_intake --output
+   "<absolute-private-directory>"`. The command copies the preserved template,
+   records its SHA-256, creates the S01–S12 `OPEN` manifest, and refuses output
+   paths inside the repository or over an existing directory. It does not create
+   a workbook row, contact HIS, or submit to SMIS.
+2. Confirm that the operator is authorized to use the SMIS test or approved
    environment, and record the environment name and timezone without recording
    credentials.
-2. Check out the repository revision under test. Generate the synthetic input
+3. Check out the repository revision under test. Generate the synthetic input
    from repository-controlled data; do not read the configured HIS directory,
    use a real patient, or copy a production export.
-3. Copy the official template to an ignored private evidence directory. Record
+4. Copy the official template to a new scenario-specific artifact in the private
+   kit. Record
    the source template hash, generated input hash, and generated workbook hash
    before upload. Keep the original bytes for every retry; never overwrite an
    accepted artifact.
-4. Upload each scenario through the authorized SMIS workflow. Record the
+5. Upload each scenario through the authorized SMIS workflow. Record the
    timestamp, operator role, scenario ID, import/batch ID, overall status,
    per-item status, exact error/result text, and whether a retry or correction
    was requested.
-5. For S06 and S07, preserve the original import/result alongside the repeat or
+6. For S06 and S07, preserve the original import/result alongside the repeat or
    correction. Do not replace the first result or call a corrected file the
    original version.
-6. Export or transcribe only the de-identified result needed for review. Remove
+7. Export or transcribe only the de-identified result needed for review. Remove
    names, national IDs, addresses, credentials, session tokens, and unrelated
    rows. Store the private raw evidence outside Git and attach only the
    redacted matrix or a hash/reference in the issue.
-7. Have the independent reviewer reconcile every scenario against the hashes,
+8. Have the independent reviewer reconcile every scenario against the hashes,
    row counts, quantities, lots, and platform item statuses. Record all
    mismatches as `OPEN`; do not repair the evidence by editing the source.
-8. If SMIS behavior is unavailable, ambiguous, or differs between runs, stop
+9. If SMIS behavior is unavailable, ambiguous, or differs between runs, stop
    the scenario at that boundary, preserve the response, and create or update
    a needs-info issue. Do not enable production export or infer a rule.
 
