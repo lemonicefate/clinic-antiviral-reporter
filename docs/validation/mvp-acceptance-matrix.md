@@ -63,6 +63,12 @@ browser, Rust and native Windows evidence is recorded in the linked progress fil
           → #26 actual synthetic SMIS readiness report
 ```
 
+The executable intake for the still-open #15 evidence is
+[official-export-contract-intake.md](official-export-contract-intake.md). It
+keeps the official questions and observed scenario results separate from the
+repository's synthetic preview tests; no production export is enabled by
+completing the repository side alone.
+
 #21 additionally awaits the prepared tray/sign-in human check. Live HIS (#23),
 authorization (#24), and operational deployment/restore (#25) remain independent
 M0 evidence. Passing repository tests never closes those gates.
