@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 from scripts.check_acceptance_environment import main, preflight
+from scripts.prepare_his_contract_intake import prepare as prepare_his
 from scripts.prepare_smis_contract_intake import prepare
 
 
@@ -65,16 +66,22 @@ class AcceptanceEnvironmentPreflightTest(unittest.TestCase):
         browser.parent.mkdir()
         return repository, desktop, browser, kit
 
+    def _his_kit(self, root: Path, repository: Path) -> Path:
+        kit = root / "private" / "his-kit"
+        prepare_his(kit, repository=repository)
+        return kit
+
     def test_valid_private_handoff_is_ready_without_closing_smis(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repository, desktop, browser, kit = self._fixtures(root)
+            his_kit = self._his_kit(root, repository)
             server = ThreadingHTTPServer(("127.0.0.1", 0), _HealthHandler)
             browser.write_text(json.dumps({"url": f"http://127.0.0.1:{server.server_port}/"}), encoding="utf-8")
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                result = preflight(desktop, browser, kit, repository=repository)
+                result = preflight(desktop, browser, kit, his_kit=his_kit, repository=repository)
             finally:
                 server.shutdown()
                 thread.join(timeout=5)
@@ -82,6 +89,8 @@ class AcceptanceEnvironmentPreflightTest(unittest.TestCase):
             self.assertEqual("READY_FOR_MANUAL", result["status"])
             self.assertEqual("OPEN", result["smis"]["status"])
             self.assertEqual(12, len(result["smis"]["openScenarios"]))
+            self.assertEqual("OPEN", result["his"]["status"])
+            self.assertEqual(11, len(result["his"]["openScenarios"]))
             self.assertFalse(result["productionExportEnabled"])
 
     def test_tampered_executable_and_non_loopback_url_block_handoff(self) -> None:
@@ -164,10 +173,12 @@ class AcceptanceEnvironmentPreflightTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repository, desktop, browser, kit = self._fixtures(root)
+            his_kit = self._his_kit(root, repository)
             browser.write_text(json.dumps({"url": "http://127.0.0.1:8000/"}), encoding="utf-8")
             output = io.StringIO()
             with patch.object(sys, "argv", ["check_acceptance_environment", "--desktop-metadata", str(desktop),
                                                "--browser-metadata", str(browser), "--smis-kit", str(kit),
+                                               "--his-kit", str(his_kit),
                                                "--no-browser-health"]), redirect_stdout(output):
                 main()
             self.assertEqual("READY_FOR_MANUAL", json.loads(output.getvalue())["status"])
@@ -175,12 +186,23 @@ class AcceptanceEnvironmentPreflightTest(unittest.TestCase):
             bad_output = io.StringIO()
             with patch.object(sys, "argv", ["check_acceptance_environment", "--desktop-metadata",
                                                str(root / "missing.json"), "--browser-metadata", str(browser),
-                                               "--smis-kit", str(kit), "--no-browser-health"]), \
+                                               "--smis-kit", str(kit), "--his-kit", str(his_kit),
+                                               "--no-browser-health"]), \
                     redirect_stdout(bad_output):
                 with self.assertRaises(SystemExit) as raised:
                     main()
             self.assertEqual(1, raised.exception.code)
             self.assertEqual("BLOCKED", json.loads(bad_output.getvalue())["status"])
+
+            skipped_output = io.StringIO()
+            with patch.object(sys, "argv", ["check_acceptance_environment", "--desktop-metadata",
+                                               str(desktop), "--browser-metadata", str(browser),
+                                               "--smis-kit", str(kit), "--no-his-kit",
+                                               "--no-browser-health"]), redirect_stdout(skipped_output):
+                main()
+            skipped = json.loads(skipped_output.getvalue())
+            self.assertEqual("READY_FOR_MANUAL", skipped["status"])
+            self.assertNotIn("his", skipped)
 
     def test_metadata_inside_repository_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

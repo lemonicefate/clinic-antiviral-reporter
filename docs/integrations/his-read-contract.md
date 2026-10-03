@@ -38,6 +38,11 @@ The following fields are candidates documented by the reviewed HIS schema materi
 
 ## Remaining field evidence
 
+Use the [live HIS read-contract intake](../validation/his-contract-intake.md) to
+record the following observations in a private, de-identified manifest. The
+intake keeps raw source files and source paths outside the repository and leaves
+every unresolved result `OPEN`.
+
 1. Verify `(RELKEY, SYS_2015)` nullability, reuse, and behavior across edits/cancellations. Existing implementation is precedent, not live evidence.
 2. Verify live `TREAT` transitions and identify order-level amendment behavior without relying on deleted-row restoration.
 3. Exercise `CH011M1.SDATE`, integer `USE_TAMT`, partial dispensing, and audit behavior with synthetic data.

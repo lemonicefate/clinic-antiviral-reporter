@@ -32,8 +32,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start_acceptance.p
 ```
 
 預期輸出 `"status": "READY_FOR_MANUAL"`、桌面 EXE hash 相符、瀏覽器入口
-HTTP 200，以及 SMIS kit 的 `status: "OPEN"`。`READY_FOR_MANUAL` 只表示合成
-測試環境可交接，不代表 SMIS 契約完成或 production export 已開啟；出現
+HTTP 200、SMIS kit 的 `status: "OPEN"`，以及 HIS contract kit 的
+`status: "OPEN"`。`READY_FOR_MANUAL` 只表示合成測試環境與兩份私有 evidence
+manifest 可交接，不代表 HIS/SMIS 契約完成或 production export 已開啟；出現
 `BLOCKED` 時先修復輸出中的項目，不要開始人工驗收。
 
 ## 逐步操作與預期結果

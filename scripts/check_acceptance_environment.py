@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, build_opener, ProxyHandler, Request
 
+from scripts.validate_his_contract_intake import validate as validate_his
 from scripts.validate_smis_contract_intake import validate as validate_smis
 
 
@@ -156,7 +157,17 @@ def _smis(kit_path: Path, repository: Path) -> tuple[dict[str, Any], list[str]]:
     return details, list(result.errors)
 
 
-def preflight(desktop_metadata: Path, browser_metadata: Path, smis_kit: Path, *,
+def _his(kit_path: Path, repository: Path) -> tuple[dict[str, Any], list[str]]:
+    result = validate_his(kit_path, repository=repository)
+    details = {"status": "COMPLETE" if result.complete else "OPEN",
+               "openScenarios": list(result.open_scenarios),
+               "completedScenarios": list(result.completed_scenarios),
+               "ready": not result.errors}
+    return details, list(result.errors)
+
+
+def preflight(desktop_metadata: Path, browser_metadata: Path, smis_kit: Path,
+              his_kit: Path | None = None, *,
               repository: Path | None = None, check_browser: bool = True,
               timeout: float = 5.0) -> dict[str, Any]:
     repository_root = (repository or Path(__file__).resolve().parents[1]).resolve(strict=True)
@@ -177,19 +188,26 @@ def preflight(desktop_metadata: Path, browser_metadata: Path, smis_kit: Path, *,
     errors.extend(f"browser: {error}" for error in browser_errors)
     smis, smis_errors = _smis(smis_kit, repository_root)
     errors.extend(f"smis: {error}" for error in smis_errors)
-    return {"status": "READY_FOR_MANUAL" if not errors else "BLOCKED",
-            "syntheticOnly": True, "productionExportEnabled": False,
-            "desktop": desktop, "browser": browser, "smis": smis, "errors": errors}
+    result = {"status": "READY_FOR_MANUAL" if not errors else "BLOCKED",
+              "syntheticOnly": True, "productionExportEnabled": False,
+              "desktop": desktop, "browser": browser, "smis": smis, "errors": errors}
+    if his_kit is not None:
+        his, his_errors = _his(his_kit, repository_root)
+        errors.extend(f"his: {error}" for error in his_errors)
+        result["his"] = his
+        result["status"] = "READY_FOR_MANUAL" if not errors else "BLOCKED"
+    return result
 
 
-def _default_paths() -> tuple[Path, Path, Path]:
+def _default_paths() -> tuple[Path, Path, Path, Path]:
     local_app_data = os.environ.get("LOCALAPPDATA")
     if not local_app_data:
         missing = Path("__missing_local_app_data__")
-        return missing / "desktop-v1" / "current.json", missing / "case-queue-v1" / "current.json", missing / "smis-contract-v1"
+        return (missing / "desktop-v1" / "current.json", missing / "case-queue-v1" / "current.json",
+                missing / "smis-contract-v1", missing / "his-contract-v1")
     root = Path(local_app_data) / "ClinicReporterAcceptance"
     return (root / "desktop-v1" / "current.json", root / "case-queue-v1" / "current.json",
-            root / "smis-contract-v1")
+            root / "smis-contract-v1", root / "his-contract-v1")
 
 
 def main() -> None:
@@ -198,6 +216,9 @@ def main() -> None:
     parser.add_argument("--desktop-metadata", type=Path, default=defaults[0])
     parser.add_argument("--browser-metadata", type=Path, default=defaults[1])
     parser.add_argument("--smis-kit", type=Path, default=defaults[2])
+    parser.add_argument("--his-kit", type=Path, default=defaults[3])
+    parser.add_argument("--no-his-kit", action="store_true",
+                        help="Skip HIS contract-kit validation when it has not been prepared")
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--no-browser-health", action="store_true",
                         help="Validate the local URL shape without making a request")
@@ -206,6 +227,7 @@ def main() -> None:
         parser.error("--timeout must be positive")
     try:
         result = preflight(args.desktop_metadata, args.browser_metadata, args.smis_kit,
+                           None if args.no_his_kit else args.his_kit,
                            check_browser=not args.no_browser_health, timeout=args.timeout)
     except (OSError, ValueError) as error:
         result = {"status": "BLOCKED", "syntheticOnly": True,
