@@ -37,6 +37,10 @@ Standards: 0 actionable findings. Spec: 0 actionable findings.
 ## Human handoff
 
 The environment and [seven-step manual guide](case-queue-manual.md) are prepared.
-Human review is for selection clarity, clinic window scaling and keyboard comfort;
-automated checks already cover the deterministic behavior. #8 remains open pending
-its final acceptance evidence. Production Excel remains disabled.
+At the user's request, the agent also executed the guide's deterministic steps:
+no-match/cleared exact search, two independent detail selections, raw snapshot,
+Tab/Enter focus, widths 720/1080/1440px, and 125% CSS page zoom. All passed against
+the running real HTTPS environment, including outage and recovery. This is browser
+automation evidence, not a claim about subjective comfort or native Windows DPI.
+The user need not repeat these checks. #8 remains open pending its final delivery
+evidence. Production Excel remains disabled.
