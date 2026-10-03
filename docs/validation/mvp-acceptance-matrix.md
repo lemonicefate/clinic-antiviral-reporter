@@ -7,7 +7,7 @@ clause. `BLOCKED` means the scenario depends on named external evidence and must
 not be inferred from nearby tests.
 
 All test data referenced here is synthetic. Production HIS reading and Excel
-export remain disabled. The current full Python discovery passes 94 tests; client,
+export remain disabled. The current full Python discovery passes 107 tests; client,
 browser, Rust and native Windows evidence is recorded in the linked progress files.
 
 | # | Status | Reproducible evidence | Remaining evidence |
@@ -66,7 +66,9 @@ browser, Rust and native Windows evidence is recorded in the linked progress fil
 The executable intake for the still-open #15 evidence is
 [official-export-contract-intake.md](official-export-contract-intake.md). It
 keeps the official questions and observed scenario results separate from the
-repository's synthetic preview tests; no production export is enabled by
+repository's synthetic preview tests. The private kit preparer and read-only
+validator preserve the template hash and keep all S01–S12 results `OPEN` until
+authorized SMIS evidence is supplied; no production export is enabled by
 completing the repository side alone.
 
 #21 additionally awaits the prepared tray/sign-in human check. Live HIS (#23),
