@@ -1,9 +1,12 @@
 import hashlib
 import json
 from datetime import datetime, timezone
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scripts.prepare_smis_contract_intake import SCENARIOS, prepare
 
@@ -65,6 +68,51 @@ class SmisContractIntakeTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "non-empty template"):
                 prepare(output, template=source, repository=repository)
             self.assertFalse(output.exists())
+
+    def test_refuses_relative_paths_and_cleans_staging_after_copy_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repository = root / "repository"
+            repository.mkdir()
+            source = repository / "template.xlsx"
+            source.write_bytes(b"synthetic")
+            output = root / "evidence"
+
+            with self.assertRaisesRegex(ValueError, "absolute"):
+                prepare(Path("relative-output"), template=source, repository=repository)
+            with self.assertRaisesRegex(ValueError, "absolute"):
+                prepare(output, template=Path("relative-template.xlsx"), repository=repository)
+            with patch("scripts.prepare_smis_contract_intake.shutil.copyfile",
+                       side_effect=OSError("synthetic copy failure")):
+                with self.assertRaisesRegex(OSError, "synthetic copy failure"):
+                    prepare(output, template=source, repository=repository)
+            self.assertEqual(list(root.glob(".smis-contract-pending-*")), [])
+
+    def test_refuses_linked_template_when_windows_allows_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repository = root / "repository"
+            repository.mkdir()
+            target = root / "target"
+            target.mkdir()
+            source = target / "template.xlsx"
+            source.write_bytes(b"synthetic")
+            linked_directory = repository / "linked-template"
+            try:
+                os.symlink(source, repository / "linked-template.xlsx")
+                linked = repository / "linked-template.xlsx"
+            except OSError:
+                result = subprocess.run(["cmd", "/c", "mklink", "/J", str(linked_directory), str(target)],
+                                        capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                if result.returncode:
+                    self.skipTest("This Windows account cannot create a test link or junction")
+                linked = linked_directory / "template.xlsx"
+            try:
+                with self.assertRaisesRegex(ValueError, "links or reparse"):
+                    prepare(root / "evidence", template=linked, repository=repository)
+            finally:
+                if linked_directory.exists():
+                    linked_directory.rmdir()
 
 
 if __name__ == "__main__":
