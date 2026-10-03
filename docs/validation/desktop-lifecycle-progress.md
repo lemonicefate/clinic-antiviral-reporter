@@ -55,7 +55,7 @@ requests received before main-window readiness are retained until setup complete
 and the test waits for the actual hidden window/menu instead of sleeping two
 seconds. The full install/lifecycle/reinstall/uninstall sequence then passed three
 consecutive runs. This is bounded regression evidence, not proof of every timing.
-The current recheck passes 107 Python tests, 5 Rust tests and mypy across 32 source
+The current recheck passes 108 Python tests, 5 Rust tests and mypy across 32 source
 files. Native tray left/right clicks and an
 actual Windows sign-out/sign-in remain manual checks; the native automation checks
 the application menu and process/window behavior. The available GUI automation
