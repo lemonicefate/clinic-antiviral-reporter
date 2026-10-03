@@ -362,6 +362,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/export-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview */
+        get: operations["getExportPreview"];
+        put?: never;
+        /** Review Selection */
+        post: operations["reviewExportSelection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate */
+        post: operations["createExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/{export_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download */
+        get: operations["downloadExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -645,6 +697,18 @@ export interface components {
              */
             liveIdentityVerified: false;
         };
+        /** CreateExport */
+        CreateExport: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Cases */
+            cases: components["schemas"]["BulkCaseRevision"][];
+        };
         /** CreatePairing */
         CreatePairing: {
             /**
@@ -697,6 +761,58 @@ export interface components {
             credential: string;
             /** Name */
             name: string;
+        };
+        /** ExportCandidate */
+        ExportCandidate: {
+            case: components["schemas"]["CaseView"];
+            /** Defaultselected */
+            defaultSelected: boolean;
+            /** Selected */
+            selected: boolean;
+            /** Internalissues */
+            internalIssues: string[];
+            /** Warnings */
+            warnings: string[];
+            /** Officialblockers */
+            officialBlockers: string[];
+            /**
+             * Officiallyexportable
+             * @default false
+             * @constant
+             */
+            officiallyExportable: false;
+        };
+        /** ExportGate */
+        ExportGate: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Status
+             * @default OPEN
+             * @constant
+             */
+            status: "OPEN";
+        };
+        /** ExportPreview */
+        ExportPreview: {
+            /** Items */
+            items: components["schemas"]["ExportCandidate"][];
+            /** Selectedcount */
+            selectedCount: number;
+            /** Internallycompletecount */
+            internallyCompleteCount: number;
+            /** Gates */
+            gates: components["schemas"]["ExportGate"][];
+            /** Operationalflagenabled */
+            operationalFlagEnabled: boolean;
+            /**
+             * Productionexportenabled
+             * @default false
+             * @constant
+             */
+            productionExportEnabled: false;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -822,6 +938,15 @@ export interface components {
             pairingCode: string;
             /** Expiresat */
             expiresAt: number;
+        };
+        /** PreviewSelection */
+        PreviewSelection: {
+            /** Datefrom */
+            dateFrom?: string | null;
+            /** Dateto */
+            dateTo?: string | null;
+            /** Selected */
+            selected: string[];
         };
         /** QuarantineView */
         QuarantineView: {
@@ -1911,6 +2036,149 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getExportPreview: {
+        parameters: {
+            query?: {
+                dateFrom?: string | null;
+                dateTo?: string | null;
+                manualSelection?: boolean;
+                selected?: string[] | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviewExportSelection: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewSelection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createExport: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    downloadExport: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

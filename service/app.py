@@ -19,6 +19,7 @@ from service.cases import CaseView, RefreshView, register_case_routes
 from service.reporting import BulkLotView
 from service.scanner import Scanner, ScanView
 from service.mappings import MappingView, register_mapping_routes
+from service.export_preview import register_export_routes
 
 
 class Command(BaseModel):
@@ -270,4 +271,5 @@ def create_app(settings: Settings) -> FastAPI:
 
     register_case_routes(app, settings, active_session, MutationResult)
     register_mapping_routes(app, active_session, MutationResult)
+    register_export_routes(app, settings, active_session, MutationResult)
     return app

@@ -5,6 +5,7 @@ import { clinicApi, OperationError, requireData } from "./api";
 import type { Capability, ConnectionSettings, Device, Session } from "./api";
 import { CaseQueue } from "./CaseQueue";
 import { MappingManager } from "./MappingManager";
+import { ExportPreviewPanel } from "./ExportPreview";
 
 const capabilityNames: Record<Capability, string> = {
   admin: "管理者",
@@ -166,7 +167,9 @@ export function App() {
                     ? "案件工作區"
                     : page === "mappings"
                       ? "映射與啟用設定"
-                      : "裝置與連線"}
+                      : page === "export-preview"
+                        ? "匯出前核對"
+                        : "裝置與連線"}
                 </h1>
                 <p>
                   操作身分：{session.operator} ·{" "}
@@ -214,7 +217,28 @@ export function App() {
                 </button>
               </nav>
             )}
-            {page === "cases" ? (
+            {session.capabilities.includes("reporting") && (
+              <nav aria-label="回報工作區">
+                <button
+                  className="secondary"
+                  aria-pressed={page === "cases"}
+                  onClick={() => setPage("cases")}
+                >
+                  案件工作清單
+                </button>
+                <button
+                  className="secondary"
+                  aria-pressed={page === "export-preview"}
+                  onClick={() => setPage("export-preview")}
+                >
+                  匯出前核對
+                </button>
+              </nav>
+            )}
+            {page === "export-preview" &&
+            session.capabilities.includes("reporting") ? (
+              <ExportPreviewPanel key={session.sessionId} api={api} />
+            ) : page === "cases" ? (
               <CaseQueue key={session.sessionId} api={api} session={session} />
             ) : page === "mappings" &&
               session.capabilities.includes("admin") ? (

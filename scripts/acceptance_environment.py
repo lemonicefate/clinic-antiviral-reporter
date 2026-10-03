@@ -246,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = args['request']
                 path = req['path']
                 import re
-                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|mappings|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review))',urlsplit(path).path):
+                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|mappings|export-preview|exports|exports/[a-f0-9-]+/file|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review))',urlsplit(path).path):
                     raise ValueError()
                 if req['method'] not in ('GET','POST'): raise ValueError()
                 body = req.get('body')
