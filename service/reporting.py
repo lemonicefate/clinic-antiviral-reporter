@@ -71,7 +71,7 @@ def register_reporting_routes(app: FastAPI, permitted: Callable, mutation_result
             key: case[key] for key in ("reportedQuantity", "lots", "excluded", "reason", "exclusionReason")}}
 
     def audit(db, device, session, kind, before, after, reason):
-        source = db.execute("SELECT MAX(sequence) FROM source_snapshots WHERE case_id=?", (before["caseId"],)).fetchone()[0]
+        source = before["reportingSourceSnapshot"]
         db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
                    (kind, device["id"], session["operator"], time.time(), json.dumps({
                        "caseId": before["caseId"], "sourceSnapshot": source, "source": "human", "reason": reason,

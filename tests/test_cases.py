@@ -13,6 +13,166 @@ from service.settings import Settings
 
 
 class SyntheticQueueTest(unittest.TestCase):
+    def test_initial_unseen_order_is_quarantined_and_cancelled_order_requires_review(self):
+        first = self.client.post("/api/v1/synthetic/refresh", headers=self.headers, json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "scenario": "unseen"})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["created"], 3)
+        self.assertEqual(first.json()["quarantined"], 1)
+        self.assertEqual(self.client.get("/api/v1/cases?physician=", headers=self.headers).json()["total"], 3)
+        second = self.client.post("/api/v1/synthetic/refresh", headers=self.headers, json={
+            "requestId": str(uuid4()), "expectedRevision": 1, "scenario": "cancelled"})
+        self.assertEqual(second.json()["created"], 1)
+        case = next(c for c in self.client.get("/api/v1/cases?physician=", headers=self.headers).json()["items"]
+                    if c["sourceOrder"] == "SYN-ORDER-1")
+        self.assertEqual(case["sourceTreatment"], "C")
+        self.assertTrue(case["sourceReviewRequired"])
+        self.assertFalse(case["excluded"])
+
+    def test_recovered_identical_source_has_case_audit_and_requires_review(self):
+        _, editor = self.reason_context("reporting")
+        case = next(c for c in self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"]
+                    if c["sourceOrder"] == "SYN-ORDER-1")
+        path = f'/api/v1/cases/{case["caseId"]}'
+        for revision, scenario in [(1, "missing"), (2, "original")]:
+            self.assertEqual(self.client.post("/api/v1/synthetic/refresh", headers=self.headers, json={
+                "requestId": str(uuid4()), "expectedRevision": revision, "scenario": scenario}).status_code, 200)
+        detail = self.client.get(path, headers=editor).json()
+        self.assertEqual(detail["revision"], 3)
+        self.assertEqual(len(detail["snapshots"]), 1)
+        self.assertFalse(detail["sourceUnresolved"])
+        self.assertTrue(detail["sourceReviewRequired"])
+        history = self.client.get(path + "/history", headers=editor).json()
+        recovered = history[-1]
+        self.assertEqual(recovered["kind"], "source_recovered")
+        self.assertEqual(recovered["changes"]["revisionBefore"], 2)
+        self.assertEqual(recovered["changes"]["revisionAfter"], 3)
+        self.assertTrue(recovered["changes"]["quarantineSequences"])
+
+    def test_source_review_conflicts_permissions_and_atomic_decisions(self):
+        _, editor = self.reason_context("reporting")
+        case = next(c for c in self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"]
+                    if c["sourceOrder"] == "SYN-ORDER-1")
+        path = f'/api/v1/cases/{case["caseId"]}'
+        def refresh(revision, scenario):
+            result = self.client.post("/api/v1/synthetic/refresh", headers=self.headers, json={
+                "requestId": str(uuid4()), "expectedRevision": revision, "scenario": scenario})
+            self.assertEqual(result.status_code, 200, result.text)
+            return self.client.get(path, headers=editor).json()
+        changed = refresh(1, "modified")
+        command = {"requestId": str(uuid4()), "expectedRevision": changed["revision"],
+                   "sourceSnapshot": changed["latestSourceSnapshot"], "resolution": "update", "reason": "synthetic verified"}
+        self.assertEqual(self.client.post(path + "/source-review", headers=self.headers, json=command).status_code, 403)
+        latest = refresh(2, "cancelled")
+        rejected = self.client.post(path + "/source-review", headers=editor, json=command)
+        self.assertEqual(rejected.status_code, 409)
+        self.assertEqual(rejected.json()["detail"]["differences"]["sourceTreatment"], "C")
+        command.update(expectedRevision=latest["revision"], sourceSnapshot=latest["latestSourceSnapshot"], resolution="exclude")
+        with self.client.app.state.store.transaction() as db:
+            db.execute("CREATE TRIGGER synthetic_review_failure BEFORE INSERT ON audit_events "
+                       "WHEN NEW.kind='source_reviewed' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.client.post(path + "/source-review", headers=editor, json=command)
+        self.assertEqual(self.client.get(path, headers=editor).json(), latest)
+        with self.client.app.state.store.transaction() as db:
+            db.execute("DROP TRIGGER synthetic_review_failure")
+        resolved = self.client.post(path + "/source-review", headers=editor, json=command).json()
+        self.assertTrue(resolved["excluded"])
+        self.assertFalse(resolved["sourceReviewRequired"])
+        again = refresh(3, "modified")
+        self.assertTrue(again["excluded"])
+        self.assertEqual(again["exclusionReason"], "synthetic verified")
+        updated = self.client.post(path + "/source-review", headers=editor, json={
+            "requestId": str(uuid4()), "expectedRevision": again["revision"], "sourceSnapshot": again["latestSourceSnapshot"],
+            "resolution": "update", "reason": "synthetic source correction"}).json()
+        self.assertEqual(updated["sourceQuantity"], 5)
+        self.assertEqual(updated["reportedQuantity"], 10)
+        self.assertTrue(updated["excluded"])
+        self.assertFalse(updated["internallyComplete"])
+        repeated = refresh(4, "modified")
+        self.assertEqual(repeated["revision"], updated["revision"])
+        self.assertEqual(len(repeated["snapshots"]), 4)
+
+    def test_unresolved_sources_block_review_and_never_infer_exclusion(self):
+        _, editor = self.reason_context("reporting")
+        case = next(c for c in self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"]
+                    if c["sourceOrder"] == "SYN-ORDER-1")
+        path = f'/api/v1/cases/{case["caseId"]}'
+        for revision, scenario in enumerate(["cancelled", "unseen", "deleted", "missing", "original"], 1):
+            response = self.client.post("/api/v1/synthetic/refresh", headers=self.headers, json={
+                "requestId": str(uuid4()), "expectedRevision": revision, "scenario": scenario})
+            self.assertEqual(response.status_code, 200, response.text)
+            detail = self.client.get(path, headers=editor).json()
+            self.assertFalse(detail["excluded"])
+            self.assertTrue(detail["sourceReviewRequired"])
+            if scenario == "cancelled":
+                self.assertEqual(detail["sourceTreatment"], "C")
+                self.assertEqual(len(detail["snapshots"]), 2)
+            if scenario in ("unseen", "deleted", "missing"):
+                self.assertTrue(detail["sourceUnresolved"])
+                self.assertEqual(len(detail["snapshots"]), 2)
+                rejected = self.client.post(path + "/source-review", headers=editor, json={
+                    "requestId": str(uuid4()), "expectedRevision": detail["revision"],
+                    "sourceSnapshot": detail["latestSourceSnapshot"], "resolution": "retain", "reason": "synthetic"})
+                self.assertEqual(rejected.status_code, 409)
+            if scenario == "original":
+                self.assertFalse(detail["sourceUnresolved"])
+                self.assertEqual(len(detail["snapshots"]), 3)
+        diagnostics = self.client.get("/api/v1/source-quarantine", headers=editor)
+        self.assertEqual(diagnostics.status_code, 200)
+        self.assertTrue(all(item["resolved"] for item in diagnostics.json()))
+        _, physician = self.reason_context("physician")
+        self.assertEqual(self.client.get("/api/v1/source-quarantine", headers=physician).status_code, 403)
+
+    def test_source_changes_preserve_reporting_and_require_explicit_review(self):
+        _, editor = self.reason_context("reporting")
+        case = next(c for c in self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"]
+                    if c["sourceOrder"] == "SYN-ORDER-1")
+        path = f'/api/v1/cases/{case["caseId"]}'
+        reason = "23:未滿5歲及65歲以上之類流感患者"
+        self.client.post(path + "/reason", headers=editor, json={"requestId": str(uuid4()),
+                         "expectedRevision": 1, "reason": reason, "patientConfirmed": True})
+        self.client.post(path + "/dispensing", headers=editor, json={"requestId": str(uuid4()),
+                         "expectedRevision": 2, "reportedQuantity": 10,
+                         "lots": [{"lot": "SYN-PRESERVE", "quantity": 10}]})
+        refreshed = self.client.post("/api/v1/synthetic/refresh", headers=self.headers, json={
+            "requestId": str(uuid4()), "expectedRevision": 1, "scenario": "modified"})
+        self.assertEqual(refreshed.status_code, 200, refreshed.text)
+        self.assertEqual(refreshed.json()["changed"], 1)
+        changed = self.client.get(path, headers=editor).json()
+        self.assertEqual(changed["revision"], 4)
+        self.assertTrue(changed["sourceReviewRequired"])
+        self.assertFalse(changed["internallyComplete"])
+        self.assertEqual(changed["reason"], reason)
+        self.assertEqual(changed["lots"], [{"lot": "SYN-PRESERVE", "quantity": 10}])
+        self.assertEqual(changed["reportedQuantity"], 10)
+        self.assertEqual(len(changed["snapshots"]), 2)
+        self.assertEqual(changed["sourceDifferences"]["CH012M1.USE_TAMT"], {"before": "10", "after": "5"})
+        command = {"requestId": str(uuid4()), "expectedRevision": 4,
+                   "sourceSnapshot": changed["latestSourceSnapshot"], "resolution": "retain",
+                   "reason": "synthetic verified earlier dispensing"}
+        resolved = self.client.post(path + "/source-review", headers=editor, json=command)
+        self.assertEqual(resolved.status_code, 200, resolved.text)
+        self.assertFalse(resolved.json()["sourceReviewRequired"])
+        self.assertEqual(resolved.json()["reportedQuantity"], 10)
+        self.assertEqual(self.client.post(path + "/source-review", headers=editor, json=command).json(), resolved.json())
+        history = self.client.get(path + "/history", headers=editor).json()
+        self.assertEqual(history[-1]["kind"], "source_reviewed")
+        self.assertEqual(history[-1]["changes"]["reason"], command["reason"])
+        saved_reason = self.client.post(path + "/reason", headers=editor, json={
+            "requestId": str(uuid4()), "expectedRevision": resolved.json()["revision"],
+            "reason": reason, "patientConfirmed": True})
+        self.assertEqual(saved_reason.status_code, 200)
+        history = self.client.get(path + "/history", headers=editor).json()
+        self.assertEqual(history[-1]["changes"]["sourceSnapshot"], resolved.json()["reportingSourceSnapshot"])
+        self.assertNotEqual(history[-1]["changes"]["sourceSnapshot"], changed["latestSourceSnapshot"])
+        dispensing = self.client.post(path + "/dispensing", headers=editor, json={
+            "requestId": str(uuid4()), "expectedRevision": saved_reason.json()["revision"],
+            "reportedQuantity": 10, "lots": [{"lot": "SYN-AUDIT", "quantity": 10}]})
+        self.assertEqual(dispensing.status_code, 200)
+        history = self.client.get(path + "/history", headers=editor).json()
+        self.assertEqual(history[-1]["changes"]["sourceSnapshot"], resolved.json()["reportingSourceSnapshot"])
+
     def test_bulk_conflict_reports_reason_change_and_keeps_every_selected_case_unchanged(self):
         _, editor = self.reason_context("reporting")
         cases = self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"][:2]

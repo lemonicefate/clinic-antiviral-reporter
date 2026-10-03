@@ -276,6 +276,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/source-quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Diagnostics */
+        get: operations["listSourceQuarantine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}/source-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review */
+        post: operations["reviewSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -380,6 +414,37 @@ export interface components {
             /** Exclusionreason */
             exclusionReason?: string | null;
             /**
+             * Sourcereviewrequired
+             * @default false
+             */
+            sourceReviewRequired: boolean;
+            /**
+             * Sourceunresolved
+             * @default false
+             */
+            sourceUnresolved: boolean;
+            /**
+             * Reportingsourcesnapshot
+             * @default 0
+             */
+            reportingSourceSnapshot: number;
+            /**
+             * Latestsourcesnapshot
+             * @default 0
+             */
+            latestSourceSnapshot: number;
+            /** Sourcedifferences */
+            sourceDifferences?: {
+                [key: string]: {
+                    [key: string]: string | null;
+                };
+            };
+            /**
+             * Sourcetreatment
+             * @default Y
+             */
+            sourceTreatment: string;
+            /**
              * Internallycomplete
              * @default false
              */
@@ -473,6 +538,37 @@ export interface components {
             excluded: boolean;
             /** Exclusionreason */
             exclusionReason?: string | null;
+            /**
+             * Sourcereviewrequired
+             * @default false
+             */
+            sourceReviewRequired: boolean;
+            /**
+             * Sourceunresolved
+             * @default false
+             */
+            sourceUnresolved: boolean;
+            /**
+             * Reportingsourcesnapshot
+             * @default 0
+             */
+            reportingSourceSnapshot: number;
+            /**
+             * Latestsourcesnapshot
+             * @default 0
+             */
+            latestSourceSnapshot: number;
+            /** Sourcedifferences */
+            sourceDifferences?: {
+                [key: string]: {
+                    [key: string]: string | null;
+                };
+            };
+            /**
+             * Sourcetreatment
+             * @default Y
+             */
+            sourceTreatment: string;
             /**
              * Internallycomplete
              * @default false
@@ -569,6 +665,23 @@ export interface components {
             /** Expiresat */
             expiresAt: number;
         };
+        /** QuarantineView */
+        QuarantineView: {
+            /** Sequence */
+            sequence: number;
+            /** Sourcekey */
+            sourceKey: string;
+            /** Diagnosis */
+            diagnosis: string;
+            /** Capturedat */
+            capturedAt: number;
+            /** Lastseen */
+            lastSeen: number;
+            /** Attempts */
+            attempts: number;
+            /** Resolved */
+            resolved: boolean;
+        };
         /** QueueView */
         QueueView: {
             /** Items */
@@ -601,16 +714,6 @@ export interface components {
              */
             officialRulesVerified: false;
         };
-        /** RefreshCommand */
-        RefreshCommand: {
-            /**
-             * Requestid
-             * Format: uuid
-             */
-            requestId: string;
-            /** Expectedrevision */
-            expectedRevision: number;
-        };
         /** RefreshView */
         RefreshView: {
             /** Revision */
@@ -620,11 +723,40 @@ export interface components {
             /** Unchanged */
             unchanged: number;
             /**
+             * Changed
+             * @default 0
+             */
+            changed: number;
+            /**
+             * Quarantined
+             * @default 0
+             */
+            quarantined: number;
+            /**
              * Synthetic
              * @default true
              * @constant
              */
             synthetic: true;
+        };
+        /** ReviewSource */
+        ReviewSource: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Sourcesnapshot */
+            sourceSnapshot: number;
+            /**
+             * Resolution
+             * @enum {string}
+             */
+            resolution: "update" | "retain" | "exclude";
+            /** Reason */
+            reason: string;
         };
         /** RevokeDevice */
         RevokeDevice: {
@@ -710,6 +842,22 @@ export interface components {
             raw: {
                 [key: string]: string;
             };
+        };
+        /** SyntheticRefresh */
+        SyntheticRefresh: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /**
+             * Scenario
+             * @default original
+             * @enum {string}
+             */
+            scenario: "original" | "modified" | "cancelled" | "unseen" | "deleted" | "missing";
         };
         /** ValidationError */
         ValidationError: {
@@ -983,7 +1131,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RefreshCommand"];
+                "application/json": components["schemas"]["SyntheticRefresh"];
             };
         };
         responses: {
@@ -1015,7 +1163,7 @@ export interface operations {
                 caseStatus?: "active" | "all" | "unfinished" | "excluded" | "awaiting_reason" | "awaiting_reconciliation" | "internally_complete";
                 dateFrom?: string | null;
                 dateTo?: string | null;
-                exception?: "all" | "duplicate" | "overdue" | "quantity_changed";
+                exception?: "all" | "duplicate" | "overdue" | "quantity_changed" | "source_changed";
             };
             header?: {
                 authorization?: string | null;
@@ -1273,6 +1421,76 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["BulkLot"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listSourceQuarantine: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuarantineView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviewSource: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSource"];
             };
         };
         responses: {

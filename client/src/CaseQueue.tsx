@@ -6,6 +6,7 @@ import type { components } from "./generated/api";
 import { ReasonEditor } from "./ReasonEditor";
 import { ReportingEditor } from "./ReportingEditor";
 import { BulkLotEditor } from "./BulkLotEditor";
+import { SourceReview, SourceQuarantine } from "./SourceReview";
 
 type Queue = components["schemas"]["QueueView"];
 type Detail = components["schemas"]["CaseDetail"];
@@ -30,7 +31,7 @@ export function CaseQueue({
     | "internally_complete"
   >("active");
   const [exception, setException] = useState<
-    "all" | "duplicate" | "overdue" | "quantity_changed"
+    "all" | "duplicate" | "overdue" | "quantity_changed" | "source_changed"
   >("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -41,11 +42,15 @@ export function CaseQueue({
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scenario, setScenario] =
+    useState<
+      NonNullable<components["schemas"]["SyntheticRefresh"]["scenario"]>
+    >("original");
   const generation = useRef(0);
   const detailGeneration = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const pendingRefresh = useRef<
-    { requestId: string; expectedRevision: number } | undefined
+    components["schemas"]["SyntheticRefresh"] | undefined
   >(undefined);
 
   useEffect(() => {
@@ -131,6 +136,7 @@ export function CaseQueue({
     const body = pendingRefresh.current ?? {
       requestId: crypto.randomUUID(),
       expectedRevision: queue.refreshRevision,
+      scenario,
     };
     pendingRefresh.current = body;
     try {
@@ -150,6 +156,13 @@ export function CaseQueue({
       if (generation.current === current + 1)
         setStatus(
           `合成來源刷新完成：新增 ${data.created} 案，未變 ${data.unchanged} 案。`,
+        );
+      if (
+        generation.current === current + 1 &&
+        (data.changed || data.quarantined)
+      )
+        setStatus(
+          `合成來源刷新完成：異動 ${data.changed} 案，隔離 ${data.quarantined} 筆，請核對來源。`,
         );
     } catch {
       if (generation.current === current)
@@ -243,6 +256,7 @@ export function CaseQueue({
                 <option value="duplicate">同日多筆</option>
                 <option value="overdue">跨日未完成</option>
                 <option value="quantity_changed">來源與實發量不同</option>
+                <option value="source_changed">HIS 異動待確認</option>
               </select>
             </label>
             <label>
@@ -274,14 +288,38 @@ export function CaseQueue({
       </p>
       {session.capabilities.includes("admin") &&
         queue?.syntheticRefreshEnabled && (
-          <button
-            className="secondary"
-            disabled={busy}
-            onClick={() => void refresh()}
-          >
-            刷新合成來源
-          </button>
+          <>
+            <label>
+              合成來源情境
+              <select
+                aria-label="合成來源情境"
+                value={scenario}
+                disabled={busy}
+                onChange={(e) => {
+                  setScenario(e.target.value as typeof scenario);
+                  pendingRefresh.current = undefined;
+                }}
+              >
+                <option value="original">原始來源</option>
+                <option value="modified">數量與姓名更正</option>
+                <option value="cancelled">取消（C）</option>
+                <option value="unseen">未看診但有醫令（N）</option>
+                <option value="deleted">刪除列不再觀測</option>
+                <option value="missing">來源消失</option>
+              </select>
+            </label>
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => void refresh()}
+            >
+              刷新合成來源
+            </button>
+          </>
         )}
+      {(reporting || session.capabilities.includes("admin")) && (
+        <SourceQuarantine api={api} />
+      )}
       <p role="status">{busy ? "正在讀取清單…" : status}</p>
       {error && <p role="alert">{error}</p>}
       {queue && (
@@ -343,6 +381,12 @@ export function CaseQueue({
                         {item.sourceQuantity} 顆
                       </td>
                       <td>
+                        {item.sourceReviewRequired && (
+                          <strong>
+                            HIS 異動待確認
+                            <br />
+                          </strong>
+                        )}
                         {item.overdue && (
                           <strong>
                             跨日未完成
@@ -421,6 +465,24 @@ export function CaseQueue({
             </p>
           )}
           <p>目前理由：{detail.reason ?? "尚未填寫"}</p>
+          <SourceReview
+            key={"source:" + detail.caseId + ":" + detail.revision}
+            api={api}
+            detail={detail}
+            reporting={reporting}
+            onReload={setDetail}
+            onSaved={() => {
+              const expected = generation.current + 1;
+              void load().then((ok) => {
+                if (generation.current === expected)
+                  setStatus(
+                    ok
+                      ? "來源核對已儲存，清單已更新。"
+                      : "來源核對已儲存；請重新查詢清單。",
+                  );
+              });
+            }}
+          />
           {reporting && (
             <ReportingEditor
               key={"reporting:" + detail.caseId + ":" + detail.revision}

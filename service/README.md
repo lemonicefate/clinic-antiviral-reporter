@@ -158,3 +158,12 @@ remain in audit. Tested v1/v2/v3/v4 upgrades retain source facts and medication 
 Stop and retain complete state before upgrading. Pre-v5 binaries refuse v5: preserve
 it and deploy a compatible forward fix rather than deleting human decisions.
 The isolated acceptance runner now covers four real HTTPS browser journeys.
+# Source reconciliation (schema v6)
+
+Synthetic refresh accepts explicit original/modified/cancelled/unseen/deleted/missing
+scenarios. Changed sources append snapshots while retaining the adopted reporting
+source and all human fields. Reporting-only `source-review` requires a case revision,
+latest snapshot, resolution and reason. Quarantine diagnostics are reporting/admin
+only; valid recovery still requires review. Human command audits reference the
+adopted source. See `docs/validation/source-review-progress.md` for migration,
+recovery and evidence. Production HIS and export gates remain unchanged.

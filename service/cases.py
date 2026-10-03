@@ -32,7 +32,13 @@ class RefreshView(BaseModel):
     revision: int
     created: int
     unchanged: int
+    changed: int = 0
+    quarantined: int = 0
     synthetic: Literal[True] = True
+
+
+class SyntheticRefresh(RefreshCommand):
+    scenario: Literal["original", "modified", "cancelled", "unseen", "deleted", "missing"] = "original"
 
 
 class SaveReason(RefreshCommand):
@@ -71,6 +77,12 @@ class CaseView(BaseModel):
     lots: list[LotAllocation] = Field(default_factory=list)
     excluded: bool = False
     exclusionReason: str | None = None
+    sourceReviewRequired: bool = False
+    sourceUnresolved: bool = False
+    reportingSourceSnapshot: int = 0
+    latestSourceSnapshot: int = 0
+    sourceDifferences: dict[str, dict[str, str | None]] = Field(default_factory=dict)
+    sourceTreatment: str = "Y"
     internallyComplete: bool = False
     exportEligible: Literal[False] = False
     synthetic: Literal[True] = True
@@ -119,14 +131,21 @@ def synthetic_orders(anchor: date) -> list[dict[str, str]]:
 
 def _case_rows(db):
     return [(row, json.loads(row["facts"])) for row in db.execute(
-        "SELECT c.*,s.facts FROM report_cases c JOIN source_snapshots s ON s.sequence="
+        "SELECT c.*,s.facts,latest.sequence AS latest_sequence,latest.facts AS latest_facts, "
+        "EXISTS(SELECT 1 FROM source_quarantine q WHERE q.source_key=c.source_key AND q.resolved=0) AS unresolved "
+        "FROM report_cases c JOIN source_snapshots s ON s.sequence=c.reporting_snapshot "
+        "JOIN source_snapshots latest ON latest.sequence="
         "(SELECT MAX(sequence) FROM source_snapshots WHERE case_id=c.id)")]
 
 
 def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
     reporting_date = facts["CH011M1.SDATE"]
     lots = json.loads(row["lots"])
-    complete = bool(row["reason"] and lots and sum(lot["quantity"] for lot in lots) == row["reported_quantity"])
+    latest = json.loads(row["latest_facts"])
+    pending = row["reviewed_snapshot"] != row["latest_sequence"] or bool(row["unresolved"])
+    complete = bool(not pending and row["reason"] and lots and
+                    row["reported_quantity"] <= int(facts["CH012M1.USE_TAMT"]) and
+                    sum(lot["quantity"] for lot in lots) == row["reported_quantity"])
     excluded = bool(row["excluded"])
     return {
         "caseId": row["id"], "revision": row["revision"],
@@ -139,6 +158,11 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
         "duplicateConcern": (facts["PD011M1.NUM"], reporting_date) in duplicates,
         "reason": row["reason"],
         "lots": lots, "excluded": excluded, "exclusionReason": row["exclusion_reason"],
+        "sourceReviewRequired": pending, "reportingSourceSnapshot": row["reporting_snapshot"],
+        "sourceUnresolved": bool(row["unresolved"]),
+        "latestSourceSnapshot": row["latest_sequence"], "sourceTreatment": latest.get("RG011M1.TREAT", ""),
+        "sourceDifferences": {key: {"before": facts.get(key), "after": latest.get(key)}
+                              for key in sorted(facts.keys() | latest.keys()) if facts.get(key) != latest.get(key)},
         "internallyComplete": complete and not excluded, "exportEligible": False,
         "status": "excluded" if excluded else "internally_complete" if complete else
                   "awaiting_reconciliation" if row["reason"] else "awaiting_reason",
@@ -162,7 +186,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
         return device, session
 
     @app.post("/api/v1/synthetic/refresh", response_model=mutation_result, operation_id="refreshSyntheticOrders")
-    def refresh(command: RefreshCommand, request: Request,
+    def refresh(command: SyntheticRefresh, request: Request,
                 authorization: Annotated[str | None, Header()] = None,
                 x_session_id: Annotated[str | None, Header()] = None):
         with request.app.state.store.transaction() as db:
@@ -177,22 +201,11 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
             if revision != command.expectedRevision:
                 raise HTTPException(409, {"currentRevision": revision, "differences": {"refresh": "reload status"}})
             anchor = date.fromisoformat(state["anchor_date"]) if state else clinic_today()
-            created = 0
-            for facts in synthetic_orders(anchor):
-                key = "synthetic-v1:" + facts["CH012M1.SYS_2015"]
-                if db.execute("SELECT 1 FROM report_cases WHERE source_key=?", (key,)).fetchone():
-                    continue
-                case_id = str(uuid4())
-                db.execute("INSERT INTO report_cases(id,source_key,revision,reported_quantity) VALUES (?,?,1,?)", (case_id, key, 10))
-                db.execute("INSERT INTO source_snapshots(case_id,captured_at,facts) VALUES (?,?,?)",
-                           (case_id, time.time(), json.dumps(facts, ensure_ascii=False)))
-                db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
-                           ("case_created", device["id"], session["operator"], time.time(),
-                            json.dumps({"caseId": case_id, "sourceKey": key, "synthetic": True})))
-                created += 1
+            from service.sources import ingest_synthetic
+            counts = ingest_synthetic(db, synthetic_orders(anchor), command.scenario, device, session)
             db.execute("INSERT INTO ingestion_state VALUES ('synthetic-v1',?,?) ON CONFLICT(id) "
                        "DO UPDATE SET revision=excluded.revision", (revision + 1, anchor.isoformat()))
-            result = {"revision": revision + 1, "created": created, "unchanged": 4 - created, "synthetic": True}
+            result = {"revision": revision + 1, **counts, "synthetic": True}
             db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
                        ("synthetic_refreshed", device["id"], session["operator"], time.time(), json.dumps(result)))
             return save_result(db, device["id"], str(command.requestId), result)
@@ -202,7 +215,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
               chart: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
               caseStatus: Literal["active", "all", "unfinished", "excluded", "awaiting_reason", "awaiting_reconciliation", "internally_complete"] = "active",
               dateFrom: date | None = None, dateTo: date | None = None,
-              exception: Literal["all", "duplicate", "overdue", "quantity_changed"] = "all",
+              exception: Literal["all", "duplicate", "overdue", "quantity_changed", "source_changed"] = "all",
               authorization: Annotated[str | None, Header()] = None,
               x_session_id: Annotated[str | None, Header()] = None):
         with request.app.state.store.transaction() as db:
@@ -228,6 +241,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                      (dateTo is None or item["reportingDate"] <= dateTo.isoformat()) and
                      (exception == "all" or (exception == "duplicate" and item["duplicateConcern"]) or
                       (exception == "overdue" and item["overdue"]) or
+                      (exception == "source_changed" and item["sourceReviewRequired"]) or
                       (exception == "quantity_changed" and item["sourceQuantity"] != item["reportedQuantity"]))]
             return {"items": items, "total": len(items), "overdue": sum(item["overdue"] for item in items),
                     "awaitingReason": sum(item["reason"] is None and not item["excluded"] for item in items),
@@ -263,7 +277,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                                          "differences": {"reason": row["reason"]}})
             db.execute("UPDATE report_cases SET reason=?,revision=revision+1 WHERE id=?",
                        (command.reason, str(case_id)))
-            snapshot = db.execute("SELECT MAX(sequence) FROM source_snapshots WHERE case_id=?", (str(case_id),)).fetchone()[0]
+            snapshot = row["reporting_snapshot"]
             db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
                        ("reason_saved", device["id"], session["operator"], time.time(), json.dumps({
                            "caseId": str(case_id), "sourceSnapshot": snapshot, "source": "human",
@@ -291,3 +305,5 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
 
     from service.reporting import register_reporting_routes
     register_reporting_routes(app, permitted, mutation_result)
+    from service.sources import register_source_routes
+    register_source_routes(app, permitted, mutation_result)

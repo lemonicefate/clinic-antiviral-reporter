@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 5:
+            if version > 6:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -98,6 +98,22 @@ class Store:
                     ALTER TABLE report_cases ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0;
                     ALTER TABLE report_cases ADD COLUMN exclusion_reason TEXT;
                     PRAGMA user_version=5;
+                    COMMIT;
+                """)
+            if version < 6:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE report_cases ADD COLUMN reporting_snapshot INTEGER REFERENCES source_snapshots(sequence);
+                    ALTER TABLE report_cases ADD COLUMN reviewed_snapshot INTEGER REFERENCES source_snapshots(sequence);
+                    UPDATE report_cases SET reporting_snapshot=(SELECT MAX(sequence) FROM source_snapshots WHERE case_id=report_cases.id);
+                    UPDATE report_cases SET reviewed_snapshot=reporting_snapshot;
+                    CREATE TABLE source_quarantine (
+                        sequence INTEGER PRIMARY KEY, source_key TEXT NOT NULL,
+                        captured_at REAL NOT NULL, facts TEXT NOT NULL, diagnosis TEXT NOT NULL,
+                        last_seen REAL NOT NULL, attempts INTEGER NOT NULL DEFAULT 1,
+                        resolved INTEGER NOT NULL DEFAULT 0
+                    );
+                    PRAGMA user_version=6;
                     COMMIT;
                 """)
         except Exception:

@@ -285,6 +285,10 @@ export function ReportingEditor({
                   dispensing_saved: "發藥核對",
                   bulk_lot_saved: "批次批號",
                   exclusion_changed: "排除／納入",
+                  source_changed: "來源異動",
+                  source_reviewed: "來源人工核對",
+                  source_quarantined: "來源隔離",
+                  source_recovered: "來源恢復",
                 } as Record<string, string>
               )[event.kind] ?? event.kind}
             </h4>
@@ -293,6 +297,23 @@ export function ReportingEditor({
               {event.operator} · 裝置 {event.deviceId}
             </p>
             <p>原因：{String(event.changes.reason || "未另填原因")}</p>
+            {event.kind === "source_reviewed" && (
+              <p>
+                處理方式：
+                {
+                  (
+                    {
+                      update: "採用最新來源",
+                      retain: "保留回報採用來源",
+                      exclude: "排除此案",
+                    } as Record<string, string>
+                  )[String(event.changes.resolution)]
+                }
+              </p>
+            )}
+            {typeof event.changes.sourceSnapshot === "number" && (
+              <p>關聯來源版本：{String(event.changes.sourceSnapshot)}</p>
+            )}
             <p>
               修改前：{describe(event.changes.before)}；修改後：
               {describe(event.changes.after)}
@@ -307,6 +328,10 @@ export function ReportingEditor({
 function describe(value: unknown): string {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object") return "無";
+  if ("CH012M1.USE_TAMT" in value) {
+    const facts = value as Record<string, string>;
+    return `姓名 ${facts["PD011M1.NAME"]}；給藥日期 ${facts["CH011M1.SDATE"]}；來源量 ${facts["CH012M1.USE_TAMT"]} 顆；狀態 ${facts["RG011M1.TREAT"]}`;
+  }
   const data = value as {
     reportedQuantity?: number;
     excluded?: boolean;

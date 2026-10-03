@@ -550,7 +550,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RefreshCommand"
+                "$ref": "#/components/schemas/SyntheticRefresh"
               }
             }
           }
@@ -701,7 +701,8 @@
                 "all",
                 "duplicate",
                 "overdue",
-                "quantity_changed"
+                "quantity_changed",
+                "source_changed"
               ],
               "type": "string",
               "default": "all",
@@ -1372,6 +1373,174 @@
           }
         }
       }
+    },
+    "/api/v1/source-quarantine": {
+      "get": {
+        "summary": "Diagnostics",
+        "operationId": "listSourceQuarantine",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuarantineView"
+                  },
+                  "title": "Response Listsourcequarantine"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/source-review": {
+      "post": {
+        "summary": "Review",
+        "operationId": "reviewSource",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSource"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    }
+                  ],
+                  "title": "Response Reviewsource"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1597,6 +1766,48 @@
             ],
             "title": "Exclusionreason"
           },
+          "sourceReviewRequired": {
+            "type": "boolean",
+            "title": "Sourcereviewrequired",
+            "default": false
+          },
+          "sourceUnresolved": {
+            "type": "boolean",
+            "title": "Sourceunresolved",
+            "default": false
+          },
+          "reportingSourceSnapshot": {
+            "type": "integer",
+            "title": "Reportingsourcesnapshot",
+            "default": 0
+          },
+          "latestSourceSnapshot": {
+            "type": "integer",
+            "title": "Latestsourcesnapshot",
+            "default": 0
+          },
+          "sourceDifferences": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Sourcedifferences"
+          },
+          "sourceTreatment": {
+            "type": "string",
+            "title": "Sourcetreatment",
+            "default": "Y"
+          },
           "internallyComplete": {
             "type": "boolean",
             "title": "Internallycomplete",
@@ -1786,6 +1997,48 @@
               }
             ],
             "title": "Exclusionreason"
+          },
+          "sourceReviewRequired": {
+            "type": "boolean",
+            "title": "Sourcereviewrequired",
+            "default": false
+          },
+          "sourceUnresolved": {
+            "type": "boolean",
+            "title": "Sourceunresolved",
+            "default": false
+          },
+          "reportingSourceSnapshot": {
+            "type": "integer",
+            "title": "Reportingsourcesnapshot",
+            "default": 0
+          },
+          "latestSourceSnapshot": {
+            "type": "integer",
+            "title": "Latestsourcesnapshot",
+            "default": 0
+          },
+          "sourceDifferences": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Sourcedifferences"
+          },
+          "sourceTreatment": {
+            "type": "string",
+            "title": "Sourcetreatment",
+            "default": "Y"
           },
           "internallyComplete": {
             "type": "boolean",
@@ -2031,6 +2284,49 @@
         ],
         "title": "PairingView"
       },
+      "QuarantineView": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "sourceKey": {
+            "type": "string",
+            "title": "Sourcekey"
+          },
+          "diagnosis": {
+            "type": "string",
+            "title": "Diagnosis"
+          },
+          "capturedAt": {
+            "type": "number",
+            "title": "Capturedat"
+          },
+          "lastSeen": {
+            "type": "number",
+            "title": "Lastseen"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sequence",
+          "sourceKey",
+          "diagnosis",
+          "capturedAt",
+          "lastSeen",
+          "attempts",
+          "resolved"
+        ],
+        "title": "QuarantineView"
+      },
       "QueueView": {
         "properties": {
           "items": {
@@ -2112,27 +2408,6 @@
         ],
         "title": "ReasonOptionsView"
       },
-      "RefreshCommand": {
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Requestid"
-          },
-          "expectedRevision": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Expectedrevision"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "requestId",
-          "expectedRevision"
-        ],
-        "title": "RefreshCommand"
-      },
       "RefreshView": {
         "properties": {
           "revision": {
@@ -2146,6 +2421,16 @@
           "unchanged": {
             "type": "integer",
             "title": "Unchanged"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "default": 0
+          },
+          "quarantined": {
+            "type": "integer",
+            "title": "Quarantined",
+            "default": 0
           },
           "synthetic": {
             "type": "boolean",
@@ -2161,6 +2446,51 @@
           "unchanged"
         ],
         "title": "RefreshView"
+      },
+      "ReviewSource": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "sourceSnapshot": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Sourcesnapshot"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "update",
+              "retain",
+              "exclude"
+            ],
+            "title": "Resolution"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "sourceSnapshot",
+          "resolution",
+          "reason"
+        ],
+        "title": "ReviewSource"
       },
       "RevokeDevice": {
         "properties": {
@@ -2367,6 +2697,40 @@
           "raw"
         ],
         "title": "SnapshotView"
+      },
+      "SyntheticRefresh": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "original",
+              "modified",
+              "cancelled",
+              "unseen",
+              "deleted",
+              "missing"
+            ],
+            "title": "Scenario",
+            "default": "original"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision"
+        ],
+        "title": "SyntheticRefresh"
       },
       "ValidationError": {
         "properties": {
