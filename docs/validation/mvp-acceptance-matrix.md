@@ -7,7 +7,7 @@ clause. `BLOCKED` means the scenario depends on named external evidence and must
 not be inferred from nearby tests.
 
 All test data referenced here is synthetic. Production HIS reading and Excel
-export remain disabled. The current full Python discovery passes 108 tests; client,
+export remain disabled. The current full Python discovery passes 116 tests; client,
 browser, Rust and native Windows evidence is recorded in the linked progress files.
 
 | # | Status | Reproducible evidence | Remaining evidence |

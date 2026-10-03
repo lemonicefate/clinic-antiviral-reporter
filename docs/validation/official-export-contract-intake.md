@@ -111,6 +111,10 @@ software records it as a contract. An unexplained response remains `OPEN`.
    package and never enables a product gate. Keep the manifest's top-level
    `status` as `OPEN`; `COMPLETE` is only the validator's derived report and
    does not mean that official export is authorized.
+   For the prepared workstation handoff, run
+   `python -m scripts.check_acceptance_environment` first; its
+   `READY_FOR_MANUAL` result checks the private desktop/browser metadata and this
+   kit without changing any of them.
 3. Confirm that the operator is authorized to use the SMIS test or approved
    environment, and record the environment name and timezone without recording
    credentials.

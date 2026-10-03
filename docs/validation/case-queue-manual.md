@@ -25,6 +25,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start_acceptance.p
 日期固定為本次首次建案日期與前一天；隔日重啟同一中央，逾期筆數可能增加，
 不會將來源日期偷偷改為今天。所有數量都是 10 顆的固定合成樣本。
 
+人工交接前可先在專案根目錄執行只讀 preflight：
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.check_acceptance_environment
+```
+
+預期輸出 `"status": "READY_FOR_MANUAL"`、桌面 EXE hash 相符、瀏覽器入口
+HTTP 200，以及 SMIS kit 的 `status: "OPEN"`。`READY_FOR_MANUAL` 只表示合成
+測試環境可交接，不代表 SMIS 契約完成或 production export 已開啟；出現
+`BLOCKED` 時先修復輸出中的項目，不要開始人工驗收。
+
 ## 逐步操作與預期結果
 
 1. **開啟醫師 B**：首頁點「B：醫師」。操作身分填 `SYN-DR-A`，設定方式保持
