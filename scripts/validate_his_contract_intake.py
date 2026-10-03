@@ -150,6 +150,13 @@ def validate(kit_path: Path, *, repository: Path | None = None,
         errors.append("productionHISAccessEnabled must remain false")
     if manifest.get("sourceArtifactsCopied") is not False:
         errors.append("sourceArtifactsCopied must remain false")
+    try:
+        created_at = _text(manifest.get("createdAt"), "createdAt", 80,
+                           allow_newlines=False)
+        if created_at is None:
+            errors.append("createdAt must be a non-empty timestamp")
+    except ValueError as error:
+        errors.append(str(error))
     source_policy = manifest.get("sourcePolicy")
     expected_policy = {"readOnlyIdentityRequired": True, "rawSourceFilesAllowed": False,
                        "sourcePathStored": False}

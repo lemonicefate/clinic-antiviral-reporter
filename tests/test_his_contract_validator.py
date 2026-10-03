@@ -62,6 +62,19 @@ class HisContractValidatorTest(unittest.TestCase):
             self.assertTrue(any("raw HIS source file" in error for error in result.errors))
             self.assertTrue(any("source path" in error for error in result.errors))
 
+    def test_rejects_source_path_hidden_in_created_at(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            kit = self._kit(Path(directory))
+            manifest_path = kit / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["createdAt"] = r"2026-10-03T12:00:00+08:00 C:\Clinic\his"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = validate(kit)
+
+            self.assertTrue(any("createdAt" in error and "absolute path" in error
+                                for error in result.errors))
+
     def test_rejects_nested_unknown_fields_and_directory_junctions(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
