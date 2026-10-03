@@ -115,7 +115,7 @@ or removing a test installation, so Windows does not retain a stale startup path
 上述 sign-out 操作會影響整個工作階段，因此沒有由自動化代你執行。
 免管理員安裝、含空白路徑、自啟登錄項目、原生視窗操作及移除，均已自動測試。
 
-## Remaining #21 work
+## Remaining local manual evidence
 
 The central release catalog and authorized download API are now implemented;
 see [release distribution progress](desktop-release-progress.md) for its separate
@@ -124,8 +124,10 @@ evidence and maintenance procedure.
 Startup update checks, confirmation, signature validation, retained rollback
 packages and corrupt/interrupted update rehearsal are now implemented and tested;
 see the separate release evidence above. Central Windows-service startup/recovery
-documentation remains required. Do not distribute this unsigned test installer as a production release
-or close #21 on the basis of tray/packaging evidence alone. Actual account, device,
+and client deployment are documented in
+[Windows deployment](../deployment/windows-service-and-client.md). Do not distribute
+this unsigned test executable as a production release or use it as clinic deployment
+evidence. Actual account, device,
 certificate and operational cutover acceptance remains in #25.
 
 Implementation references: [Tauri system tray](https://v2.tauri.app/learn/system-tray/),

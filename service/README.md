@@ -73,6 +73,10 @@ are not trusted, access logging is disabled, and only one worker is allowed by t
 entry point. The OS ownership lock also rejects a second independent process.
 Synthetic real-listener tests verify trusted and untrusted TLS. Actual clinic
 firewall/network/certificate provisioning and native connection remain M0 work.
+Use the versioned WinSW bundle generator and the complete startup, maintenance and
+recovery procedure in [Windows deployment](../docs/deployment/windows-service-and-client.md)
+for Windows SCM deployment. The generator verifies the pinned wrapper, writes no
+passwords, and refuses to replace a prior bundle. Actual clinic acceptance remains #25.
 
 Every protected request carries the individual device key as a Bearer credential;
 session-bound operations also carry `X-Session-Id`. A session's operator is an
@@ -192,7 +196,8 @@ recovery and evidence. Production HIS and export gates remain unchanged.
 The offline `stage-release` command publishes immutable desktop installers with
 request replay, catalog revision checks and transactional audit. Active devices
 can read version metadata and download retained installers without an operator
-session. Signature verification and installation belong to the pending native
-update workflow; distribution alone does not establish installer trust.
+session. Signature verification, confirmed installation and retained offline
+recovery are implemented by the native client; distribution alone does not
+establish installer trust.
 See [desktop release progress](../docs/validation/desktop-release-progress.md) for
-publication commands, migration/recovery, automated evidence and remaining #21 work.
+publication commands, migration/recovery and automated evidence.

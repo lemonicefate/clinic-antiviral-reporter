@@ -177,10 +177,15 @@ returned `Approve` (job `review-muscgc38-53116514`). Full reports remain in the
 ignored `.agy-staff/jobs` directory. Reviewers inspected code; the host executed
 the tests. This approval covers the corrected paths, not production deployment.
 
-Still required for #21: central Windows-service startup/recovery instructions.
-Tray and real Windows sign-in checks remain in
+The reproducible central Windows-service startup/recovery and client deployment
+procedure is now in [Windows deployment](../deployment/windows-service-and-client.md).
+Its generator pins and verifies WinSW, uses explicit versioned paths and emits no
+account password. Its 4 focused tests bring full Python discovery to 94 passing
+tests; an official-wrapper bundle was also generated outside Git. Actual Windows
+SCM/reboot/account/firewall evidence belongs to #25. Tray and real Windows sign-in checks remain in
 [desktop lifecycle progress](desktop-lifecycle-progress.md); a fresh temporary
 manual client was prepared and launched after the automated installer tests.
-Its path, hash and PID are in the documented local metadata. Actual clinic account, certificate, firewall and
+Its path, hash and PID are in the documented local metadata. Actual clinic account,
+certificate, firewall and
 operational cutover evidence remains in #25. M0 and production export gates stay
 unchanged.
