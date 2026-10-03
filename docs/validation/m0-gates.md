@@ -33,8 +33,19 @@ Tracking issue: [#3 — M0 external HIS, SMIS, authorization, and operations val
 
 ## Operational evidence
 
+Use the [operational responsibility and authorization evidence
+template](operational-responsibility-evidence.md) for the dated, de-identified
+role and authority records below. The template remains `OPEN` until the clinic
+owner and independent reviewer supply private evidence. The deployment, restore,
+backup, and outage drills below are separate #25 evidence; do not use this
+template to claim that a drill has already happened.
+
 - [ ] Confirm proxy-operation and certificate authorization with the competent authority/SMIS owner.
 - [x] Use the current dedicated PC as the central host and keep its local state directory configurable (owner confirmation, 2026-10-02).
+- [ ] Confirm the clinic reporting lead and responsible professional owner for lot, quantity, unit, dispensing, correction, and exclusion review.
+- [ ] Confirm the approved paper fallback, outage reconciliation owner, and `系統外已完成` review boundary.
+- [ ] Confirm the record categories, retention periods, and disposal authority; use ADR 0006's seven-year baseline until the final legal classification is confirmed.
 - [ ] Confirm the central Windows account, firewall/network configuration, authorized devices, and revocation procedure. The deployment HIS source is owner-confirmed as a private configurable UNC path.
+- [ ] Confirm deployment, restore, backup-share, firewall, and certificate incident ownership and escalation.
 - [ ] Provision a dedicated off-host backup share on the HIS computer, separate from the HIS data share; record its exact path in private configuration and demonstrate hourly RPO plus a successful restore.
 - [ ] Record the explicit go-live timestamp and test outage-interval rescanning plus `系統外已完成` handling.
