@@ -54,6 +54,38 @@ class MigrationAcceptanceTest(unittest.TestCase):
                 pairing = client.post("/api/v1/pairings", headers=headers, json={
                     "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["physician"]})
                 self.assertEqual(pairing.status_code, 200, pairing.text)
+                queue = client.get("/api/v1/cases", headers=headers)
+                self.assertEqual(queue.status_code, 200)
+                self.assertEqual(queue.json()["total"], 0)
+
+    def test_version_two_history_survives_case_schema_upgrade(self):
+        with tempfile.TemporaryDirectory() as directory:
+            credential = secrets.token_urlsafe(32)
+            with sqlite3.connect(Path(directory) / "central.sqlite3") as db:
+                db.executescript("""
+                    CREATE TABLE devices(id TEXT PRIMARY KEY,name TEXT NOT NULL,credential_hash TEXT UNIQUE NOT NULL,
+                        capabilities TEXT NOT NULL,revision INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
+                    CREATE TABLE sessions(id TEXT PRIMARY KEY,device_id TEXT NOT NULL REFERENCES devices(id),
+                        operator TEXT NOT NULL,expires_at REAL NOT NULL);
+                    CREATE TABLE commands(actor TEXT NOT NULL,request_id TEXT NOT NULL,result TEXT NOT NULL,
+                        PRIMARY KEY(actor,request_id));
+                    CREATE TABLE audit_events(sequence INTEGER PRIMARY KEY,kind TEXT NOT NULL,device_id TEXT NOT NULL,
+                        operator TEXT NOT NULL,occurred_at REAL NOT NULL,changes TEXT NOT NULL);
+                    CREATE TABLE pairings(code_hash TEXT PRIMARY KEY,capabilities TEXT NOT NULL,expires_at REAL NOT NULL,
+                        used INTEGER NOT NULL DEFAULT 0,issuer TEXT NOT NULL REFERENCES devices(id));
+                    PRAGMA user_version=2;
+                """)
+                db.execute("INSERT INTO devices VALUES (?,?,?,?,1,0)", ("v2-admin", "Synthetic v2 admin",
+                           hashlib.sha256(credential.encode()).hexdigest(), '["admin"]'))
+                db.execute("INSERT INTO sessions VALUES (?,?,?,?)", ("v2-session", "v2-admin", "SYN-DR-A", 9999999999))
+                db.execute("INSERT INTO audit_events VALUES (1,?,?,?,?,?)", ("synthetic_v2_history", "v2-admin",
+                           "SYN-DR-A", 1, json.dumps({"reason": "retain v2 reason"})))
+            db.close()
+            with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
+                headers = {"Authorization": "Bearer " + credential, "X-Session-Id": "v2-session"}
+                self.assertEqual(client.get("/api/v1/cases", headers=headers).json()["total"], 0)
+                self.assertEqual(client.get("/api/v1/audit", headers=headers).json()[0]["changes"],
+                                 {"reason": "retain v2 reason"})
 
     def test_newer_schema_is_rejected_without_changing_its_database(self):
         with tempfile.TemporaryDirectory() as directory:

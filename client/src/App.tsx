@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { clinicApi, OperationError, requireData } from "./api";
 import type { Capability, ConnectionSettings, Device, Session } from "./api";
+import { CaseQueue } from "./CaseQueue";
 
 const capabilityNames: Record<Capability, string> = {
   admin: "管理者",
@@ -35,6 +36,7 @@ export function App() {
   const [session, setSession] = useState<Session>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState("devices");
   const epoch = useRef(0);
   const enrollmentRequest = useRequestId();
   const sessionRequest = useRequestId();
@@ -133,6 +135,7 @@ export function App() {
       enrollmentRequest.complete();
       sessionRequest.complete();
       setPairingCode("");
+      setPage(result.capabilities.includes("admin") ? "devices" : "cases");
       setSession(result);
     } catch (failure) {
       setCredential("");
@@ -157,7 +160,7 @@ export function App() {
           <>
             <div className="page-heading">
               <div>
-                <h1>裝置與連線</h1>
+                <h1>{page === "cases" ? "案件工作區" : "裝置與連線"}</h1>
                 <p>
                   操作身分：{session.operator} ·{" "}
                   {session.capabilities
@@ -179,7 +182,27 @@ export function App() {
             <p className="notice">
               操作身分用於篩選與稽核，不代表已驗證本人。切換身分不會增加裝置能力。
             </p>
-            {session.capabilities.includes("admin") ? (
+            {session.capabilities.includes("admin") && (
+              <nav aria-label="工作區">
+                <button
+                  className="secondary"
+                  onClick={() => setPage("devices")}
+                  aria-pressed={page === "devices"}
+                >
+                  裝置與連線
+                </button>{" "}
+                <button
+                  className="secondary"
+                  onClick={() => setPage("cases")}
+                  aria-pressed={page === "cases"}
+                >
+                  案件工作清單
+                </button>
+              </nav>
+            )}
+            {page === "cases" ? (
+              <CaseQueue key={session.sessionId} api={api} session={session} />
+            ) : session.capabilities.includes("admin") ? (
               <DeviceManager
                 key={session.sessionId}
                 api={api}

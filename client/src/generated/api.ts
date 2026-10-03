@@ -123,6 +123,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/synthetic/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh */
+        post: operations["refreshSyntheticOrders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Queue */
+        get: operations["listCases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["getCase"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -143,6 +194,114 @@ export interface components {
             changes: {
                 [key: string]: unknown;
             };
+        };
+        /** CaseDetail */
+        CaseDetail: {
+            /** Caseid */
+            caseId: string;
+            /** Revision */
+            revision: number;
+            /** Chartnumber */
+            chartNumber: string;
+            /** Patientname */
+            patientName: string;
+            /**
+             * Birthdate
+             * Format: date
+             */
+            birthDate: string;
+            /** Physician */
+            physician: string;
+            /**
+             * Reportingdate
+             * Format: date
+             */
+            reportingDate: string;
+            /** Sourceorder */
+            sourceOrder: string;
+            /** Sourcequantity */
+            sourceQuantity: number;
+            /** Reportedquantity */
+            reportedQuantity: number;
+            /** Material */
+            material: string;
+            /** Overdue */
+            overdue: boolean;
+            /** Duplicateconcern */
+            duplicateConcern: boolean;
+            /**
+             * Status
+             * @default awaiting_reason
+             * @constant
+             */
+            status: "awaiting_reason";
+            /**
+             * Synthetic
+             * @default true
+             * @constant
+             */
+            synthetic: true;
+            /**
+             * Liveidentityverified
+             * @default false
+             * @constant
+             */
+            liveIdentityVerified: false;
+            /** Snapshots */
+            snapshots: components["schemas"]["SnapshotView"][];
+        };
+        /** CaseView */
+        CaseView: {
+            /** Caseid */
+            caseId: string;
+            /** Revision */
+            revision: number;
+            /** Chartnumber */
+            chartNumber: string;
+            /** Patientname */
+            patientName: string;
+            /**
+             * Birthdate
+             * Format: date
+             */
+            birthDate: string;
+            /** Physician */
+            physician: string;
+            /**
+             * Reportingdate
+             * Format: date
+             */
+            reportingDate: string;
+            /** Sourceorder */
+            sourceOrder: string;
+            /** Sourcequantity */
+            sourceQuantity: number;
+            /** Reportedquantity */
+            reportedQuantity: number;
+            /** Material */
+            material: string;
+            /** Overdue */
+            overdue: boolean;
+            /** Duplicateconcern */
+            duplicateConcern: boolean;
+            /**
+             * Status
+             * @default awaiting_reason
+             * @constant
+             */
+            status: "awaiting_reason";
+            /**
+             * Synthetic
+             * @default true
+             * @constant
+             */
+            synthetic: true;
+            /**
+             * Liveidentityverified
+             * @default false
+             * @constant
+             */
+            liveIdentityVerified: false;
         };
         /** CreatePairing */
         CreatePairing: {
@@ -209,6 +368,48 @@ export interface components {
             /** Expiresat */
             expiresAt: number;
         };
+        /** QueueView */
+        QueueView: {
+            /** Items */
+            items: components["schemas"]["CaseView"][];
+            /** Total */
+            total: number;
+            /** Overdue */
+            overdue: number;
+            /** Physicians */
+            physicians: string[];
+            /** Physician */
+            physician: string;
+            /** Syntheticrefreshenabled */
+            syntheticRefreshEnabled: boolean;
+            /** Refreshrevision */
+            refreshRevision: number;
+        };
+        /** RefreshCommand */
+        RefreshCommand: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+        };
+        /** RefreshView */
+        RefreshView: {
+            /** Revision */
+            revision: number;
+            /** Created */
+            created: number;
+            /** Unchanged */
+            unchanged: number;
+            /**
+             * Synthetic
+             * @default true
+             * @constant
+             */
+            synthetic: true;
+        };
         /** RevokeDevice */
         RevokeDevice: {
             /**
@@ -235,6 +436,17 @@ export interface components {
             revision: number;
             /** Expiresat */
             expiresAt: number;
+        };
+        /** SnapshotView */
+        SnapshotView: {
+            /** Sequence */
+            sequence: number;
+            /** Capturedat */
+            capturedAt: number;
+            /** Raw */
+            raw: {
+                [key: string]: string;
+            };
         };
         /** ValidationError */
         ValidationError: {
@@ -279,7 +491,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
                 };
             };
             /** @description Validation Error */
@@ -411,7 +623,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
                 };
             };
             /** @description Validation Error */
@@ -482,7 +694,112 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refreshSyntheticOrders: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listCases: {
+        parameters: {
+            query?: {
+                physician?: string | null;
+                chart?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCase: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseDetail"];
                 };
             };
             /** @description Validation Error */

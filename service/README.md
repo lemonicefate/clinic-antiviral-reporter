@@ -2,8 +2,8 @@
 
 Python 3.12/FastAPI central service. Issue #7 is in progress: device/session APIs
 and central settings are implemented alongside a Windows device-management client.
-Deployment acceptance remains open. No HIS scanner, patient workflow, or export
-endpoint is enabled.
+Deployment acceptance remains open. The #8 slice adds a synthetic case queue and
+detail API. No live HIS scanner or export endpoint is enabled.
 
 ## Development
 
@@ -71,7 +71,8 @@ read API requires an administrator device; there is no audit edit/delete API.
 ## Schema and recovery
 
 SQLite user_version 1 introduces devices, sessions, command results, and audit;
-version 2 adds pairing grants. Migration runs under exclusive service ownership.
+version 2 adds pairing grants; version 3 adds synthetic ingestion state, separate
+report cases, and retained source snapshots. Migration runs under exclusive service ownership.
 The service rejects a database from a newer schema. Tests use isolated temporary
 state, exercise a cold restart and v1-to-v2 migration, and verify ownership rejection,
 retry history, and unchanged database bytes when refusing a newer schema. A synthetic
@@ -90,3 +91,25 @@ path traversal, equal HIS/backup share names, production placeholders/documentat
 addresses, wildcard listeners, and backup intervals above an hour. The export flag
 is only an operational setting, not evidence or authorization to export; no export
 implementation exists in this checkpoint.
+
+## Synthetic case queue
+
+`CLINIC_REPORTER_SYNTHETIC_ENABLED=true` explicitly enables fixed test samples in
+development; production rejects this configuration. Administrator refresh uses
+`POST /api/v1/synthetic/refresh`, with the current refresh revision obtained from
+`GET /api/v1/cases`. Four fixed orders are imported once in a synthetic namespace,
+all with source/report quantities of 10 capsules. Later refreshes retain their
+original dates and raw facts; they do not represent changed-source synchronization.
+
+`GET /api/v1/cases` defaults to the session operator's physician label. An explicit
+empty physician selects all; an exact chart number crosses physician filters.
+Duplicates are warnings across all cases, independent of the current filter.
+`GET /api/v1/cases/{case_id}` requires an authorized session and returns preserved
+raw synthetic snapshots. Dates are calendar dates; same-day order is not chronology.
+
+Use the [prepared acceptance environment](../docs/validation/case-queue-manual.md)
+for a real HTTPS API/browser journey. It keeps state and generated certificates
+outside Git, never opens HIS paths, and does not certify native Windows transport.
+Before upgrading an existing synthetic v2 environment, stop it and retain its
+entire state directory. v1/v2 histories survive v3 migration. Older binaries refuse
+v3; keep v3 intact and use a compatible forward fix rather than deleting case tables.

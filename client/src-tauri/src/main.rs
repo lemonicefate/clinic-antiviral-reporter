@@ -189,6 +189,16 @@ struct CentralResponse {
     body: String,
 }
 
+fn permitted_route(path: &str) -> bool {
+    // Query values may contain encoded chart numbers or physician labels. Only
+    // the path portion selects a route; encoded path traversal remains forbidden.
+    let route = path.split('?').next().unwrap_or("");
+    route.starts_with("/api/v1/")
+        && !route.contains("..")
+        && !route.contains(['\\', '#', '%'])
+        && !path.contains(['#', '\\', '\r', '\n'])
+}
+
 #[tauri::command]
 async fn central_request(mut request: CentralRequest) -> Result<CentralResponse, String> {
     let enrollment = if request.path == "/api/v1/devices/enroll" {
@@ -206,9 +216,7 @@ async fn central_request(mut request: CentralRequest) -> Result<CentralResponse,
     };
     let (endpoint, credential) = identity(enrollment.as_deref())?;
     // The webview chooses an API route, never a server or arbitrary outbound URL.
-    if !request.path.starts_with("/api/v1/")
-        || request.path.contains("..")
-        || request.path.contains(['\\', '#', '%'])
+    if !permitted_route(&request.path)
         || !["GET", "POST"].contains(&request.method.as_str())
     {
         return Err("不支援的中央服務操作。".into());
@@ -275,6 +283,15 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encoded_filters_do_not_change_the_api_route() {
+        assert!(permitted_route("/api/v1/cases?physician=%E5%90%88%E6%88%90&chart=A%2FB"));
+        for route in ["https://other/api/v1/cases", "/api/v1/%2e%2e/secrets", "/api/v1/../other",
+                      "/api/v1/cases#other", "/api/v1/cases\\other"] {
+            assert!(!permitted_route(route));
+        }
+    }
 
     #[test]
     fn fresh_pairing_rotates_identity_but_retries_keep_the_same_key() {

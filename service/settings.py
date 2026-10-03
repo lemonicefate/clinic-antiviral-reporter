@@ -56,6 +56,7 @@ class Settings:
     scan_interval_seconds: int = 60
     backup_interval_seconds: int = 1800
     export_enabled: bool = False
+    synthetic_enabled: bool = False
 
     @classmethod
     def from_environment(cls, environment: Mapping[str, str]) -> "Settings":
@@ -70,6 +71,9 @@ class Settings:
         enabled = environment.get("CLINIC_REPORTER_EXPORT_ENABLED", "false")
         if enabled not in ("true", "false"):
             raise SettingsError("EXPORT_ENABLED must be true or false")
+        synthetic = environment.get("CLINIC_REPORTER_SYNTHETIC_ENABLED", "false")
+        if synthetic not in ("true", "false") or (mode == "production" and synthetic == "true"):
+            raise SettingsError("Synthetic fixtures are allowed only in explicit development mode")
         host = environment.get("CLINIC_REPORTER_BIND_HOST", "127.0.0.1")
         try:
             address = ipaddress.ip_address(host)
@@ -97,4 +101,5 @@ class Settings:
             integer("HIS_SCAN_INTERVAL_SECONDS", 60, 86400),
             integer("BACKUP_INTERVAL_SECONDS", 1800, 3600),
             enabled == "true",
+            synthetic == "true",
         )

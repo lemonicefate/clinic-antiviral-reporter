@@ -52,6 +52,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
                     }
                   ],
                   "title": "Response Createsession"
@@ -329,6 +332,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
                     }
                   ],
                   "title": "Response Createpairing"
@@ -460,9 +466,267 @@
                     },
                     {
                       "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
                     }
                   ],
                   "title": "Response Revokedevice"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetic/refresh": {
+      "post": {
+        "summary": "Refresh",
+        "operationId": "refreshSyntheticOrders",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    }
+                  ],
+                  "title": "Response Refreshsyntheticorders"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases": {
+      "get": {
+        "summary": "Queue",
+        "operationId": "listCases",
+        "parameters": [
+          {
+            "name": "physician",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Physician"
+            }
+          },
+          {
+            "name": "chart",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chart"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}": {
+      "get": {
+        "summary": "Detail",
+        "operationId": "getCase",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseDetail"
                 }
               }
             }
@@ -521,6 +785,200 @@
           "changes"
         ],
         "title": "AuditView"
+      },
+      "CaseDetail": {
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "title": "Caseid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "chartNumber": {
+            "type": "string",
+            "title": "Chartnumber"
+          },
+          "patientName": {
+            "type": "string",
+            "title": "Patientname"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Birthdate"
+          },
+          "physician": {
+            "type": "string",
+            "title": "Physician"
+          },
+          "reportingDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Reportingdate"
+          },
+          "sourceOrder": {
+            "type": "string",
+            "title": "Sourceorder"
+          },
+          "sourceQuantity": {
+            "type": "integer",
+            "title": "Sourcequantity"
+          },
+          "reportedQuantity": {
+            "type": "integer",
+            "title": "Reportedquantity"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
+          "duplicateConcern": {
+            "type": "boolean",
+            "title": "Duplicateconcern"
+          },
+          "status": {
+            "type": "string",
+            "const": "awaiting_reason",
+            "title": "Status",
+            "default": "awaiting_reason"
+          },
+          "synthetic": {
+            "type": "boolean",
+            "const": true,
+            "title": "Synthetic",
+            "default": true
+          },
+          "liveIdentityVerified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Liveidentityverified",
+            "default": false
+          },
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotView"
+            },
+            "type": "array",
+            "title": "Snapshots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "caseId",
+          "revision",
+          "chartNumber",
+          "patientName",
+          "birthDate",
+          "physician",
+          "reportingDate",
+          "sourceOrder",
+          "sourceQuantity",
+          "reportedQuantity",
+          "material",
+          "overdue",
+          "duplicateConcern",
+          "snapshots"
+        ],
+        "title": "CaseDetail"
+      },
+      "CaseView": {
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "title": "Caseid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "chartNumber": {
+            "type": "string",
+            "title": "Chartnumber"
+          },
+          "patientName": {
+            "type": "string",
+            "title": "Patientname"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Birthdate"
+          },
+          "physician": {
+            "type": "string",
+            "title": "Physician"
+          },
+          "reportingDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Reportingdate"
+          },
+          "sourceOrder": {
+            "type": "string",
+            "title": "Sourceorder"
+          },
+          "sourceQuantity": {
+            "type": "integer",
+            "title": "Sourcequantity"
+          },
+          "reportedQuantity": {
+            "type": "integer",
+            "title": "Reportedquantity"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
+          "duplicateConcern": {
+            "type": "boolean",
+            "title": "Duplicateconcern"
+          },
+          "status": {
+            "type": "string",
+            "const": "awaiting_reason",
+            "title": "Status",
+            "default": "awaiting_reason"
+          },
+          "synthetic": {
+            "type": "boolean",
+            "const": true,
+            "title": "Synthetic",
+            "default": true
+          },
+          "liveIdentityVerified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Liveidentityverified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "caseId",
+          "revision",
+          "chartNumber",
+          "patientName",
+          "birthDate",
+          "physician",
+          "reportingDate",
+          "sourceOrder",
+          "sourceQuantity",
+          "reportedQuantity",
+          "material",
+          "overdue",
+          "duplicateConcern"
+        ],
+        "title": "CaseView"
       },
       "CreatePairing": {
         "properties": {
@@ -701,6 +1159,105 @@
         ],
         "title": "PairingView"
       },
+      "QueueView": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CaseView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "overdue": {
+            "type": "integer",
+            "title": "Overdue"
+          },
+          "physicians": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Physicians"
+          },
+          "physician": {
+            "type": "string",
+            "title": "Physician"
+          },
+          "syntheticRefreshEnabled": {
+            "type": "boolean",
+            "title": "Syntheticrefreshenabled"
+          },
+          "refreshRevision": {
+            "type": "integer",
+            "title": "Refreshrevision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "overdue",
+          "physicians",
+          "physician",
+          "syntheticRefreshEnabled",
+          "refreshRevision"
+        ],
+        "title": "QueueView"
+      },
+      "RefreshCommand": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision"
+        ],
+        "title": "RefreshCommand"
+      },
+      "RefreshView": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "synthetic": {
+            "type": "boolean",
+            "const": true,
+            "title": "Synthetic",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision",
+          "created",
+          "unchanged"
+        ],
+        "title": "RefreshView"
+      },
       "RevokeDevice": {
         "properties": {
           "requestId": {
@@ -770,6 +1327,32 @@
           "expiresAt"
         ],
         "title": "SessionView"
+      },
+      "SnapshotView": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "capturedAt": {
+            "type": "number",
+            "title": "Capturedat"
+          },
+          "raw": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Raw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sequence",
+          "capturedAt",
+          "raw"
+        ],
+        "title": "SnapshotView"
       },
       "ValidationError": {
         "properties": {

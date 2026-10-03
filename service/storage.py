@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 2:
+            if version > 3:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -64,6 +64,24 @@ class Store:
                         issuer TEXT NOT NULL REFERENCES devices(id)
                     );
                     PRAGMA user_version=2;
+                    COMMIT;
+                """)
+            if version < 3:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE ingestion_state (
+                        id TEXT PRIMARY KEY, revision INTEGER NOT NULL, anchor_date TEXT NOT NULL
+                    );
+                    CREATE TABLE report_cases (
+                        id TEXT PRIMARY KEY, source_key TEXT UNIQUE NOT NULL,
+                        revision INTEGER NOT NULL, reported_quantity INTEGER NOT NULL
+                    );
+                    CREATE TABLE source_snapshots (
+                        sequence INTEGER PRIMARY KEY, case_id TEXT NOT NULL REFERENCES report_cases(id),
+                        captured_at REAL NOT NULL, facts TEXT NOT NULL
+                    );
+                    CREATE INDEX snapshots_case ON source_snapshots(case_id,sequence);
+                    PRAGMA user_version=3;
                     COMMIT;
                 """)
         except Exception:
