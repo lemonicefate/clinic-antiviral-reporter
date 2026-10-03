@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 8:
+            if version > 9:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -147,6 +147,26 @@ class Store:
                     ALTER TABLE source_snapshots ADD COLUMN mapping_version INTEGER REFERENCES mapping_versions(sequence);
                     ALTER TABLE scan_runs ADD COLUMN mapping_revision INTEGER NOT NULL DEFAULT 0;
                     PRAGMA user_version=8;
+                    COMMIT;
+                """)
+            if version < 9:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE scan_runs ADD COLUMN outage_recovery INTEGER NOT NULL DEFAULT 0;
+                    CREATE TABLE scan_case_observations (
+                        scan_job_id TEXT NOT NULL REFERENCES scan_runs(id),
+                        case_id TEXT NOT NULL REFERENCES report_cases(id),
+                        source_snapshot INTEGER NOT NULL REFERENCES source_snapshots(sequence),
+                        PRIMARY KEY(scan_job_id,case_id)
+                    );
+                    CREATE TABLE outside_completions (
+                        case_id TEXT PRIMARY KEY REFERENCES report_cases(id),
+                        source_snapshot INTEGER NOT NULL REFERENCES source_snapshots(sequence),
+                        scan_job_id TEXT NOT NULL REFERENCES scan_runs(id),
+                        device_id TEXT NOT NULL REFERENCES devices(id), operator TEXT NOT NULL,
+                        recorded_at REAL NOT NULL, reason TEXT NOT NULL
+                    );
+                    PRAGMA user_version=9;
                     COMMIT;
                 """)
         except Exception:

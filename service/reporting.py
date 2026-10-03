@@ -8,11 +8,11 @@ from uuid import UUID
 from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from service.cases import CaseView, LotAllocation, RefreshCommand, _case_rows, _duplicates, _view
+from service.cases import CaseView, LotAllocation, RevisionCommand, _case_rows, _duplicates, _view
 from service.storage import saved_result, save_result
 
 
-class SaveDispensing(RefreshCommand):
+class SaveDispensing(RevisionCommand):
     reportedQuantity: int = Field(gt=0, strict=True)
     lots: list[LotAllocation] = Field(min_length=1, max_length=50)
     changeReason: str = Field(default="", max_length=500)
@@ -27,7 +27,7 @@ class CaseHistoryEvent(BaseModel):
     changes: dict
 
 
-class SetExclusion(RefreshCommand):
+class SetExclusion(RevisionCommand):
     excluded: bool = Field(strict=True)
     reason: str = Field(min_length=1, max_length=500, pattern=r"\S")
 
@@ -38,7 +38,7 @@ class BulkCaseRevision(BaseModel):
     expectedRevision: int = Field(ge=1, strict=True)
 
 
-class BulkLot(RefreshCommand):
+class BulkLot(RevisionCommand):
     lot: str = Field(min_length=1, max_length=100, pattern=r"\S")
     cases: list[BulkCaseRevision] = Field(min_length=1, max_length=100)
     replaceConfirmed: bool = Field(strict=True)
@@ -63,12 +63,12 @@ def register_reporting_routes(app: FastAPI, permitted: Callable, mutation_result
         raise HTTPException(404, "Case not found")
 
     def expected(case, revision):
-        if case["revision"] != revision:
+        if case["revision"] != revision or case["outsideCompletion"]:
             raise HTTPException(409, conflict(case))
 
     def conflict(case):
         return {"caseId": case["caseId"], "currentRevision": case["revision"], "differences": {
-            key: case[key] for key in ("reportedQuantity", "lots", "excluded", "reason", "exclusionReason")}}
+            key: case[key] for key in ("reportedQuantity", "lots", "excluded", "reason", "exclusionReason", "status", "outsideCompletion")}}
 
     def audit(db, device, session, kind, before, after, reason):
         source = before["reportingSourceSnapshot"]
@@ -149,7 +149,7 @@ def register_reporting_routes(app: FastAPI, permitted: Callable, mutation_result
             before = []
             for item in command.cases:
                 case = current_case(db, item.caseId)
-                if case["revision"] != item.expectedRevision or case["excluded"]:
+                if case["revision"] != item.expectedRevision or case["excluded"] or case["outsideCompletion"]:
                     raise HTTPException(409, conflict(case))
                 before.append(case)
             applied = []

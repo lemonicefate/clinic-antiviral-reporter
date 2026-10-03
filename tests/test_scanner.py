@@ -6,6 +6,7 @@ from datetime import date, timedelta
 import hashlib
 from pathlib import Path
 import secrets
+import sqlite3
 import tempfile
 import time
 from threading import Event
@@ -22,6 +23,162 @@ from service.settings import Settings
 
 
 class ScannerTest(unittest.TestCase):
+    def test_only_explicit_administrator_recovery_scan_can_support_completion(self):
+        with self.environment() as (client, headers, state, root):
+            periodic = self.wait_scan(client, headers)
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            command = {"requestId": str(uuid4()), "expectedRevision": case["revision"],
+                       "sourceSnapshot": case["latestSourceSnapshot"], "scanJobId": periodic["jobId"],
+                       "paperAndSmisCompleted": True, "reason": "Synthetic recovery"}
+            response = client.post(f'/api/v1/cases/{case["caseId"]}/outside-completion', headers=headers, json=command)
+            self.assertEqual(response.status_code, 422, response.text)
+
+    def test_outside_completion_cannot_use_an_unrelated_scan_on_the_same_date(self):
+        with self.environment() as (client, headers, state, root):
+            self.wait_scan(client, headers)
+            client.post("/api/v1/synthetic/refresh", headers=headers,
+                        json={"requestId": str(uuid4()), "expectedRevision": 0})
+            scan = self.rescan(client, headers, outage=True)
+            cases = client.get("/api/v1/cases", headers=headers).json()["items"]
+            case = next(c for c in cases if c["sourceOrder"] == "SYN-ORDER-1")
+            rejected = client.post(f'/api/v1/cases/{case["caseId"]}/outside-completion', headers=headers, json={
+                "requestId": str(uuid4()), "expectedRevision": case["revision"],
+                "sourceSnapshot": case["latestSourceSnapshot"], "scanJobId": scan["jobId"],
+                "paperAndSmisCompleted": True, "reason": "Synthetic unrelated source"})
+            self.assertEqual(rejected.status_code, 422, rejected.text)
+
+    def test_outside_completion_requires_current_source_in_completed_scan_range(self):
+        yesterday = date.today() - timedelta(days=1)
+        with self.environment(initial_date=yesterday, fixture_date=yesterday) as (client, headers, state, root):
+            self.wait_scan(client, headers)
+            today_only = self.rescan(client, headers, outage=True)
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            path = f'/api/v1/cases/{case["caseId"]}'
+            command = {"requestId": str(uuid4()), "expectedRevision": case["revision"],
+                       "sourceSnapshot": case["latestSourceSnapshot"], "scanJobId": today_only["jobId"],
+                       "paperAndSmisCompleted": True, "reason": "Synthetic wrong interval"}
+            self.assertEqual(client.post(path + "/outside-completion", headers=headers, json=command).status_code, 422)
+            prepare(state, date.today(), "quantity")
+            self.rescan(client, headers)
+            latest = client.get(path, headers=headers).json()
+            command.update(expectedRevision=latest["revision"], sourceSnapshot=latest["latestSourceSnapshot"])
+            self.assertEqual(client.post(path + "/outside-completion", headers=headers, json=command).status_code, 422)
+            prepare(state, date.today(), "orphan")
+            partial = self.rescan(client, headers, outage=True)
+            latest = client.get(path, headers=headers).json()
+            command.update(expectedRevision=latest["revision"], scanJobId=partial["jobId"])
+            self.assertEqual(client.post(path + "/outside-completion", headers=headers, json=command).status_code, 409)
+
+    def test_outside_completion_permissions_atomicity_conflicts_and_terminal_guards(self):
+        with self.environment() as (client, headers, state, root):
+            self.wait_scan(client, headers)
+            scan = self.rescan(client, headers, outage=True)
+            grant = client.post("/api/v1/pairings", headers=headers, json={
+                "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["reporting"]}).json()
+            key = secrets.token_urlsafe(32)
+            client.post("/api/v1/devices/enroll", json={"requestId": str(uuid4()), "expectedRevision": 0,
+                "pairingCode": grant["pairingCode"], "credential": key, "name": "Synthetic recovery reporter"})
+            session = client.post("/api/v1/sessions", headers={"Authorization": "Bearer " + key}, json={
+                "requestId": str(uuid4()), "expectedRevision": 0, "operator": "SYN-DR-A"}).json()
+            reporter = {"Authorization": "Bearer " + key, "X-Session-Id": session["sessionId"]}
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            path = f'/api/v1/cases/{case["caseId"]}'
+            reason = client.get("/api/v1/reason-options", headers=reporter).json()["values"][0]
+            reason_command = {"requestId": str(uuid4()), "expectedRevision": 1, "reason": reason, "patientConfirmed": True}
+            reason_result = client.post(path + "/reason", headers=reporter, json=reason_command).json()
+            dispensing = {"requestId": str(uuid4()), "expectedRevision": 2, "reportedQuantity": 8,
+                          "lots": [{"lot": "SYN-PAPER", "quantity": 8}], "changeReason": "Synthetic partial dispensing"}
+            self.assertEqual(client.post(path + "/dispensing", headers=reporter, json=dispensing).status_code, 200)
+            before = client.get(path, headers=headers).json()
+            command = {"requestId": str(uuid4()), "expectedRevision": before["revision"],
+                       "sourceSnapshot": before["latestSourceSnapshot"], "scanJobId": scan["jobId"],
+                       "paperAndSmisCompleted": True, "reason": "Synthetic paper and SMIS completion"}
+            self.assertEqual(client.post(path + "/outside-completion", headers=reporter, json=command).status_code, 403)
+            for fields, expected in [({"expectedRevision": 1}, 409), ({"sourceSnapshot": 999}, 409),
+                                     ({"paperAndSmisCompleted": False}, 422), ({"reason": " "}, 422),
+                                     ({"scanJobId": str(uuid4())}, 422)]:
+                rejected = client.post(path + "/outside-completion", headers=headers, json=command | fields)
+                self.assertEqual(rejected.status_code, expected, rejected.text)
+            with client.app.state.store.transaction() as db:
+                db.execute("CREATE TRIGGER synthetic_outside_failure BEFORE INSERT ON audit_events "
+                           "WHEN NEW.kind='outside_completed' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+            with self.assertRaises(sqlite3.IntegrityError):
+                client.post(path + "/outside-completion", headers=headers, json=command)
+            self.assertEqual(client.get(path, headers=headers).json(), before)
+            with client.app.state.store.transaction() as db:
+                db.execute("DROP TRIGGER synthetic_outside_failure")
+            response = client.post(path + "/outside-completion", headers=headers, json=command)
+            self.assertEqual(response.status_code, 200, response.text)
+            completed = response.json()
+            for field in ("reason", "lots", "reportedQuantity", "reportingSourceSnapshot"):
+                self.assertEqual(completed[field], before[field])
+            for route, fields in [("reason", reason_command), ("dispensing", dispensing),
+                                  ("exclusion", {"excluded": True, "reason": "Synthetic invalid edit"}),
+                                  ("source-review", {"sourceSnapshot": completed["latestSourceSnapshot"],
+                                                     "resolution": "retain", "reason": "Synthetic invalid edit"})]:
+                rejected = client.post(path + "/" + route, headers=reporter, json=fields | {
+                    "requestId": str(uuid4()), "expectedRevision": completed["revision"]})
+                self.assertEqual(rejected.status_code, 409, route + rejected.text)
+            bulk = client.post("/api/v1/cases/bulk-lot", headers=reporter, json={
+                "requestId": str(uuid4()), "expectedRevision": 0, "lot": "SYN-INVALID", "replaceConfirmed": True,
+                "cases": [{"caseId": case["caseId"], "expectedRevision": completed["revision"]}]})
+            self.assertEqual(bulk.status_code, 409)
+            self.assertEqual(client.post(path + "/reason", headers=reporter, json=reason_command).json(), reason_result)
+            preview = client.post("/api/v1/export-preview", headers=reporter, json={"selected": [case["caseId"]]}).json()
+            self.assertEqual(preview["selectedCount"], 0)
+            self.assertIn("outside_completed", preview["items"][0]["internalIssues"])
+            history = client.get(path + "/history", headers=reporter).json()
+            recorded = [event for event in history if event["kind"] == "outside_completed"]
+            self.assertEqual(len(recorded), 1)
+            self.assertEqual(recorded[0]["operator"], "SYN-DR-A")
+            self.assertEqual(recorded[0]["occurredAt"], completed["outsideCompletion"]["recordedAt"])
+
+    def test_outside_completion_survives_rescans_without_reopening_or_exporting(self):
+        with self.environment() as (client, headers, state, root):
+            self.wait_scan(client, headers)
+            scan = self.rescan(client, headers, outage=True)
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            path = f'/api/v1/cases/{case["caseId"]}'
+            command = {"requestId": str(uuid4()), "expectedRevision": case["revision"],
+                       "sourceSnapshot": case["latestSourceSnapshot"], "scanJobId": scan["jobId"],
+                       "paperAndSmisCompleted": True, "reason": "Synthetic paper workflow completed during outage"}
+            response = client.post(path + "/outside-completion", headers=headers, json=command)
+            self.assertEqual(response.status_code, 200, response.text)
+            completed = response.json()
+            self.assertEqual(completed["status"], "outside_completed")
+            self.assertFalse(completed["excluded"])
+            self.assertFalse(completed["internallyComplete"])
+            self.assertFalse(completed["overdue"])
+            self.assertEqual(completed["outsideCompletion"]["sourceSnapshot"], case["latestSourceSnapshot"])
+            self.assertEqual(completed["outsideCompletion"]["scanJobId"], scan["jobId"])
+            self.assertEqual(completed["outsideCompletion"]["reason"], command["reason"])
+            self.assertEqual(client.post(path + "/outside-completion", headers=headers, json=command).json(), completed)
+            self.assertEqual(client.get("/api/v1/cases", headers=headers).json()["total"], 0)
+            self.assertEqual(client.get("/api/v1/cases?caseStatus=unfinished", headers=headers).json()["total"], 0)
+            terminal = client.get("/api/v1/cases?caseStatus=outside_completed", headers=headers).json()
+            self.assertEqual(terminal["total"], 1)
+            self.assertEqual(terminal["awaitingReason"], 0)
+            prepare(state, date.today(), "quantity")
+            self.rescan(client, headers)
+            changed = client.get(path, headers=headers).json()
+            self.assertEqual(changed["status"], "outside_completed")
+            self.assertEqual(changed["outsideCompletion"], completed["outsideCompletion"])
+            self.assertEqual(changed["reportedQuantity"], 10)
+            self.assertEqual(len(changed["snapshots"]), 2)
+            self.assertEqual(client.get("/api/v1/cases?caseStatus=all", headers=headers).json()["total"], 1)
+            self.assertEqual(client.get("/api/v1/cases", headers=headers).json()["total"], 0)
+            settings = replace(client.app.state.scanner.settings, synthetic_dbf_enabled=False)
+            client.__exit__(None, None, None)
+            try:
+                with TestClient(create_app(settings), base_url="https://testserver") as restarted:
+                    self.assertEqual(restarted.get(path, headers=headers).json(), changed)
+                    replay = restarted.post(path + "/outside-completion", headers=headers, json=command)
+                    self.assertEqual(replay.json(), completed)
+                    remembered = restarted.get("/api/v1/outage-rescans/latest", headers=headers).json()
+                    self.assertEqual(remembered["jobId"], scan["jobId"])
+            finally:
+                client.__enter__()
+
     def test_initial_range_excludes_older_sources_and_rejects_earlier_manual_scan(self):
         yesterday = date.today() - timedelta(days=1)
         with self.environment(fixture_date=yesterday) as (client, headers, state, root):
@@ -220,6 +377,11 @@ class ScannerTest(unittest.TestCase):
                 "requestId": str(uuid4()), "expectedRevision": 0, "operator": "SYN-DR-A"}).json()
             physician = {"Authorization": "Bearer " + key, "X-Session-Id": session["sessionId"]}
             self.assertEqual(client.get("/api/v1/source-quarantine", headers=physician).status_code, 403)
+            denied_recovery = client.post("/api/v1/scans", headers=physician, json={
+                "requestId": str(uuid4()), "expectedRevision": status["revision"], "outageRecovery": True,
+                "dateFrom": date.today().isoformat(), "dateTo": date.today().isoformat()})
+            self.assertEqual(denied_recovery.status_code, 403)
+            self.assertEqual(client.get("/api/v1/outage-rescans/latest", headers=physician).status_code, 403)
             command = {"requestId": str(uuid4()), "expectedRevision": status["revision"],
                        "dateFrom": "1900-01-01", "dateTo": date.today().isoformat()}
             self.assertEqual(client.post("/api/v1/scans", headers=physician, json=command).status_code, 422)
@@ -249,11 +411,11 @@ class ScannerTest(unittest.TestCase):
                     self.configure_mapping(client, headers, initial_date or date.today())
                 yield client, headers, state, root
 
-    def rescan(self, client, headers):
+    def rescan(self, client, headers, *, outage=False):
         status = self.wait_scan(client, headers)
         response = client.post("/api/v1/scans", headers=headers, json={
             "requestId": str(uuid4()), "expectedRevision": status["revision"],
-            "dateFrom": date.today().isoformat(), "dateTo": date.today().isoformat()})
+            "dateFrom": date.today().isoformat(), "dateTo": date.today().isoformat(), "outageRecovery": outage})
         self.assertEqual(response.status_code, 200, response.text)
         return self.wait_scan(client, headers)
 

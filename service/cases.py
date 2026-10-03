@@ -22,7 +22,7 @@ def clinic_today() -> date:
     return datetime.now(timezone(timedelta(hours=8))).date()
 
 
-class RefreshCommand(BaseModel):
+class RevisionCommand(BaseModel):
     model_config = ConfigDict(extra="forbid")
     requestId: UUID
     expectedRevision: int = Field(ge=0, strict=True)
@@ -37,11 +37,11 @@ class RefreshView(BaseModel):
     synthetic: Literal[True] = True
 
 
-class SyntheticRefresh(RefreshCommand):
+class SyntheticRefresh(RevisionCommand):
     scenario: Literal["original", "modified", "cancelled", "unseen", "deleted", "missing"] = "original"
 
 
-class SaveReason(RefreshCommand):
+class SaveReason(RevisionCommand):
     reason: str = Field(min_length=1, max_length=1000)
     patientConfirmed: bool = Field(strict=True)
 
@@ -58,6 +58,17 @@ class LotAllocation(BaseModel):
     quantity: int = Field(gt=0, strict=True)
 
 
+class OutsideCompletionView(BaseModel):
+    sourceSnapshot: int
+    scanJobId: str
+    dateFrom: date
+    dateTo: date
+    deviceId: str
+    operator: str
+    recordedAt: float
+    reason: str
+
+
 class CaseView(BaseModel):
     caseId: str
     revision: int
@@ -72,7 +83,8 @@ class CaseView(BaseModel):
     material: str
     overdue: bool
     duplicateConcern: bool
-    status: Literal["awaiting_reason", "awaiting_reconciliation", "internally_complete", "excluded"] = "awaiting_reason"
+    status: Literal["awaiting_reason", "awaiting_reconciliation", "internally_complete", "excluded", "outside_completed"] = "awaiting_reason"
+    outsideCompletion: OutsideCompletionView | None = None
     reason: str | None = None
     lots: list[LotAllocation] = Field(default_factory=list)
     excluded: bool = False
@@ -133,9 +145,13 @@ def synthetic_orders(anchor: date) -> list[dict[str, str]]:
 def _case_rows(db):
     return [(row, json.loads(row["facts"])) for row in db.execute(
         "SELECT c.*,s.facts,s.mapping_version,latest.mapping_version AS latest_mapping_version,"
+        "o.source_snapshot AS outside_source,o.scan_job_id,o.device_id AS outside_device,"
+        "o.operator AS outside_operator,o.recorded_at AS outside_time,o.reason AS outside_reason,"
+        "scan.date_from AS outside_from,scan.date_to AS outside_to,"
         "latest.sequence AS latest_sequence,latest.facts AS latest_facts, "
         "EXISTS(SELECT 1 FROM source_quarantine q WHERE q.source_key=c.source_key AND q.resolved=0) AS unresolved "
         "FROM report_cases c JOIN source_snapshots s ON s.sequence=c.reporting_snapshot "
+        "LEFT JOIN outside_completions o ON o.case_id=c.id LEFT JOIN scan_runs scan ON scan.id=o.scan_job_id "
         "JOIN source_snapshots latest ON latest.sequence="
         "(SELECT MAX(sequence) FROM source_snapshots WHERE case_id=c.id)")]
 
@@ -149,6 +165,11 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
                     row["reported_quantity"] <= int(facts["CH012M1.USE_TAMT"]) and
                     sum(lot["quantity"] for lot in lots) == row["reported_quantity"])
     excluded = bool(row["excluded"])
+    outside = None if row["outside_source"] is None else {
+        "sourceSnapshot": row["outside_source"], "scanJobId": row["scan_job_id"],
+        "dateFrom": row["outside_from"], "dateTo": row["outside_to"],
+        "deviceId": row["outside_device"], "operator": row["outside_operator"],
+        "recordedAt": row["outside_time"], "reason": row["outside_reason"]}
     differences = {key: {"before": facts.get(key), "after": latest.get(key)}
                    for key in sorted(facts.keys() | latest.keys()) if facts.get(key) != latest.get(key)}
     if row["mapping_version"] != row["latest_mapping_version"]:
@@ -162,7 +183,8 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
         "reportingDate": reporting_date, "sourceOrder": facts["CH012M1.SYS_2015"],
         "sourceQuantity": int(facts["CH012M1.USE_TAMT"]), "reportedQuantity": row["reported_quantity"],
         "material": "DDMTR2018090002:易剋冒膠囊(顆)",
-        "overdue": not excluded and reporting_date < clinic_today().isoformat(),
+        "overdue": not excluded and outside is None and reporting_date < clinic_today().isoformat(),
+        "outsideCompletion": outside,
         "duplicateConcern": (facts["PD011M1.NUM"], reporting_date) in duplicates,
         "reason": row["reason"],
         "lots": lots, "excluded": excluded, "exclusionReason": row["exclusion_reason"],
@@ -170,8 +192,8 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
         "sourceUnresolved": bool(row["unresolved"]),
         "latestSourceSnapshot": row["latest_sequence"], "sourceTreatment": latest.get("RG011M1.TREAT", ""),
         "sourceDifferences": differences,
-        "internallyComplete": complete and not excluded, "exportEligible": False,
-        "status": "excluded" if excluded else "internally_complete" if complete else
+        "internallyComplete": complete and not excluded and outside is None, "exportEligible": False,
+        "status": "outside_completed" if outside else "excluded" if excluded else "internally_complete" if complete else
                   "awaiting_reconciliation" if row["reason"] else "awaiting_reason",
     }
 
@@ -220,7 +242,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
     @app.get("/api/v1/cases", response_model=QueueView, operation_id="listCases")
     def queue(request: Request, physician: Annotated[str | None, Query(max_length=100)] = None,
               chart: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
-              caseStatus: Literal["active", "all", "unfinished", "excluded", "awaiting_reason", "awaiting_reconciliation", "internally_complete"] = "active",
+              caseStatus: Literal["active", "all", "unfinished", "excluded", "awaiting_reason", "awaiting_reconciliation", "internally_complete", "outside_completed"] = "active",
               dateFrom: date | None = None, dateTo: date | None = None,
               exception: Literal["all", "duplicate", "overdue", "quantity_changed", "source_changed"] = "all",
               authorization: Annotated[str | None, Header()] = None,
@@ -241,8 +263,8 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                        -date.fromisoformat(item["reportingDate"]).toordinal(), item["sourceOrder"]))
             state = db.execute("SELECT revision FROM ingestion_state WHERE id='synthetic-v1'").fetchone()
             items = [item for item in items if
-                     (caseStatus == "all" or (caseStatus == "active" and not item["excluded"]) or
-                      (caseStatus == "unfinished" and not item["excluded"] and not item["internallyComplete"]) or
+                     (caseStatus == "all" or (caseStatus == "active" and not item["excluded"] and not item["outsideCompletion"]) or
+                      (caseStatus == "unfinished" and not item["excluded"] and not item["outsideCompletion"] and not item["internallyComplete"]) or
                       caseStatus == item["status"]) and
                      (dateFrom is None or item["reportingDate"] >= dateFrom.isoformat()) and
                      (dateTo is None or item["reportingDate"] <= dateTo.isoformat()) and
@@ -251,7 +273,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                       (exception == "source_changed" and item["sourceReviewRequired"]) or
                       (exception == "quantity_changed" and item["sourceQuantity"] != item["reportedQuantity"]))]
             return {"items": items, "total": len(items), "overdue": sum(item["overdue"] for item in items),
-                    "awaitingReason": sum(item["reason"] is None and not item["excluded"] for item in items),
+                    "awaitingReason": sum(item["reason"] is None and not item["excluded"] and item["outsideCompletion"] is None for item in items),
                     "physicians": sorted({facts["CH011M1.DOC"] for _, facts in rows}), "physician": selected,
                     "syntheticRefreshEnabled": settings.synthetic_enabled and settings.environment == "development",
                     "refreshRevision": state["revision"] if state else 0}
@@ -279,6 +301,9 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
             row = db.execute("SELECT * FROM report_cases WHERE id=?", (str(case_id),)).fetchone()
             if row is None:
                 raise HTTPException(404, "Case not found")
+            if db.execute("SELECT 1 FROM outside_completions WHERE case_id=?", (str(case_id),)).fetchone():
+                raise HTTPException(409, {"currentRevision": row["revision"],
+                                         "differences": {"status": "outside_completed", "reason": row["reason"]}})
             if row["revision"] != command.expectedRevision:
                 raise HTTPException(409, {"currentRevision": row["revision"],
                                          "differences": {"reason": row["reason"]}})
@@ -317,3 +342,5 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
     register_source_routes(app, permitted, mutation_result)
     from service.scanner import register_scan_routes
     register_scan_routes(app, permitted, mutation_result)
+    from service.outages import register_outage_routes
+    register_outage_routes(app, active_session, mutation_result)

@@ -344,6 +344,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/outage-rescans/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest Rescan */
+        get: operations["getLatestOutageRescan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}/outside-completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete */
+        post: operations["completeOutsideSystem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mappings": {
         parameters: {
             query?: never;
@@ -505,7 +539,8 @@ export interface components {
              * @default awaiting_reason
              * @enum {string}
              */
-            status: "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "excluded";
+            status: "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "excluded" | "outside_completed";
+            outsideCompletion?: components["schemas"]["OutsideCompletionView"] | null;
             /** Reason */
             reason?: string | null;
             /** Lots */
@@ -630,7 +665,8 @@ export interface components {
              * @default awaiting_reason
              * @enum {string}
              */
-            status: "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "excluded";
+            status: "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "excluded" | "outside_completed";
+            outsideCompletion?: components["schemas"]["OutsideCompletionView"] | null;
             /** Reason */
             reason?: string | null;
             /** Lots */
@@ -696,6 +732,27 @@ export interface components {
              * @constant
              */
             liveIdentityVerified: false;
+        };
+        /** CompleteOutside */
+        CompleteOutside: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Sourcesnapshot */
+            sourceSnapshot: number;
+            /**
+             * Scanjobid
+             * Format: uuid
+             */
+            scanJobId: string;
+            /** Paperandsmiscompleted */
+            paperAndSmisCompleted: boolean;
+            /** Reason */
+            reason: string;
         };
         /** CreateExport */
         CreateExport: {
@@ -932,6 +989,50 @@ export interface components {
              */
             productionExportEnabled: false;
         };
+        /** OutageRescanView */
+        OutageRescanView: {
+            /** Jobid */
+            jobId: string;
+            /**
+             * Datefrom
+             * Format: date
+             */
+            dateFrom: string;
+            /**
+             * Dateto
+             * Format: date
+             */
+            dateTo: string;
+            /** Status */
+            status: string;
+            /** Finishedat */
+            finishedAt: number | null;
+        };
+        /** OutsideCompletionView */
+        OutsideCompletionView: {
+            /** Sourcesnapshot */
+            sourceSnapshot: number;
+            /** Scanjobid */
+            scanJobId: string;
+            /**
+             * Datefrom
+             * Format: date
+             */
+            dateFrom: string;
+            /**
+             * Dateto
+             * Format: date
+             */
+            dateTo: string;
+            /** Deviceid */
+            deviceId: string;
+            /** Operator */
+            operator: string;
+            /** Recordedat */
+            recordedAt: number;
+            /** Reason */
+            reason: string;
+        };
         /** PairingView */
         PairingView: {
             /** Pairingcode */
@@ -1153,6 +1254,11 @@ export interface components {
              * Format: date
              */
             dateTo: string;
+            /**
+             * Outagerecovery
+             * @default false
+             */
+            outageRecovery: boolean;
         };
         /** ScanView */
         ScanView: {
@@ -1199,6 +1305,11 @@ export interface components {
              * @constant
              */
             synthetic: true;
+            /**
+             * Outagerecovery
+             * @default false
+             */
+            outageRecovery: boolean;
         };
         /** SessionView */
         SessionView: {
@@ -1559,7 +1670,7 @@ export interface operations {
             query?: {
                 physician?: string | null;
                 chart?: string | null;
-                caseStatus?: "active" | "all" | "unfinished" | "excluded" | "awaiting_reason" | "awaiting_reconciliation" | "internally_complete";
+                caseStatus?: "active" | "all" | "unfinished" | "excluded" | "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "outside_completed";
                 dateFrom?: string | null;
                 dateTo?: string | null;
                 exception?: "all" | "duplicate" | "overdue" | "quantity_changed" | "source_changed";
@@ -1958,6 +2069,76 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ScanCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getLatestOutageRescan: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutageRescanView"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    completeOutsideSystem: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteOutside"];
             };
         };
         responses: {

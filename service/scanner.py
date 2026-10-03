@@ -9,9 +9,9 @@ from typing import Annotated, Callable, Literal
 from uuid import uuid4
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from service.cases import RefreshCommand, clinic_today
+from service.cases import RevisionCommand, clinic_today
 from service.his_reader import NAMESPACE, ReadFailure, read_sources
 from service.settings import Settings
 from service.sources import ingest_observation, quarantine
@@ -19,9 +19,10 @@ from service.storage import Store, saved_result, save_result
 from service.mappings import scan_configuration, mapping_for_date
 
 
-class ScanCommand(RefreshCommand):
+class ScanCommand(RevisionCommand):
     dateFrom: date
     dateTo: date
+    outageRecovery: bool = Field(default=False, strict=True)
 
 
 class ScanView(BaseModel):
@@ -39,6 +40,7 @@ class ScanView(BaseModel):
     counts: dict[str, int] = {}
     intervalSeconds: int
     synthetic: Literal[True] = True
+    outageRecovery: bool = False
 
 
 class Scanner:
@@ -60,19 +62,20 @@ class Scanner:
         return {"revision": state["revision"], "enabled": self.enabled,
                 "status": ((job["status"] if job else "idle") if configured else "awaiting_configuration") if self.enabled else "disabled",
                 "jobId": job["id"] if job else None, "dateFrom": job["date_from"] if job else None,
+                "outageRecovery": bool(job["outage_recovery"]) if job else False,
                 "dateTo": job["date_to"] if job else None, "startedAt": job["started_at"] if job else None,
                 "finishedAt": job["finished_at"] if job else None, "lastSuccessAt": state["last_success"],
                 "stale": state["last_success"] is None or time.time() - state["last_success"] > 2 * self.settings.scan_interval_seconds,
                 "diagnostic": job["diagnostic"] if job else None,
                 "counts": json.loads(job["counts"]) if job else {}, "intervalSeconds": self.settings.scan_interval_seconds}
 
-    def enqueue(self, db, date_from, date_to, device, operator):
+    def enqueue(self, db, date_from, date_to, device, operator, outage_recovery=False):
         job = str(uuid4())
         revision = db.execute("SELECT COALESCE(MAX(sequence),0) FROM mapping_versions").fetchone()[0]
-        db.execute("INSERT INTO scan_runs(id,status,date_from,date_to,device_id,operator,requested_at,mapping_revision) VALUES (?,?,?,?,?,?,?,?)",
-                   (job, "queued", date_from.isoformat(), date_to.isoformat(), device, operator, time.time(), revision))
+        db.execute("INSERT INTO scan_runs(id,status,date_from,date_to,device_id,operator,requested_at,mapping_revision,outage_recovery) VALUES (?,?,?,?,?,?,?,?,?)",
+                   (job, "queued", date_from.isoformat(), date_to.isoformat(), device, operator, time.time(), revision, int(outage_recovery)))
         db.execute("UPDATE scan_state SET current_job=?,revision=revision+1 WHERE id=1", (job,))
-        self.audit(db, "scan_requested", device, operator, {"jobId": job, "dateFrom": date_from.isoformat(), "dateTo": date_to.isoformat()})
+        self.audit(db, "scan_requested", device, operator, {"jobId": job, "dateFrom": date_from.isoformat(), "dateTo": date_to.isoformat(), "outageRecovery": outage_recovery})
 
     def start(self):
         if not self.enabled:
@@ -166,7 +169,13 @@ class Scanner:
                             quarantine(db, key, facts, "mapping_not_effective", row, actor, session)
                             counts["quarantined"] += 1
                         else:
-                            counts[ingest_observation(db, key, facts, actor, session, mapping["sequence"])] += 1
+                            outcome = ingest_observation(db, key, facts, actor, session, mapping["sequence"])
+                            counts[outcome] += 1
+                            if outcome != "quarantined":
+                                db.execute("INSERT INTO scan_case_observations(scan_job_id,case_id,source_snapshot) "
+                                           "SELECT ?,c.id,MAX(s.sequence) FROM report_cases c "
+                                           "JOIN source_snapshots s ON s.case_id=c.id WHERE c.source_key=? GROUP BY c.id",
+                                           (job["id"], key))
                 # Full stable reads may retire file/invalid-key diagnostics that
                 # cannot be matched to a case. Case-bound recovery is audited by
                 # ingest_observation and remains pending explicit human review.
@@ -219,6 +228,8 @@ def register_scan_routes(app: FastAPI, permitted: Callable, mutation_result):
             previous = saved_result(db, device["id"], str(command.requestId))
             if previous is not None:
                 return previous
+            if command.outageRecovery and "admin" not in json.loads(device["capabilities"]):
+                raise HTTPException(403, "Administrator capability required for outage recovery")
             if not scanner.enabled:
                 raise HTTPException(403, "Production HIS reader is gated; synthetic DBF scanner is not enabled")
             current = scanner.view(db)
@@ -229,7 +240,7 @@ def register_scan_routes(app: FastAPI, permitted: Callable, mutation_result):
                 raise HTTPException(409, "An administrator must configure the mapping and initial range first")
             if not initial_date <= command.dateFrom <= command.dateTo <= clinic_today():
                 raise HTTPException(422, "Scan dates must stay within the explicitly configured initial range")
-            scanner.enqueue(db, command.dateFrom, command.dateTo, device["id"], session["operator"])
+            scanner.enqueue(db, command.dateFrom, command.dateTo, device["id"], session["operator"], command.outageRecovery)
             result = save_result(db, device["id"], str(command.requestId), scanner.view(db))
         scanner.wake.set()
         return result

@@ -5,6 +5,7 @@ import type { components } from "./generated/api";
 type Preview = components["schemas"]["ExportPreview"];
 const messages: Record<string, string> = {
   excluded: "已排除，不納入匯出選取",
+  outside_completed: "系統外已完成，不納入匯出選取",
   reason_missing: "未填用藥理由",
   lots_missing: "未填批號分攤",
   lot_total_mismatch: "批號分攤合計不等於回報數量",
@@ -169,7 +170,11 @@ export function ExportPreviewPanel({
                           type="checkbox"
                           aria-label={`選取 ${item.case.sourceOrder}`}
                           checked={item.selected}
-                          disabled={busy || item.case.excluded}
+                          disabled={
+                            busy ||
+                            item.case.excluded ||
+                            !!item.case.outsideCompletion
+                          }
                           onChange={(event) =>
                             select(item.case.caseId, event.target.checked)
                           }

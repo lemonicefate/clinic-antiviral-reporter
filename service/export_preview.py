@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from service.cases import CaseView, RefreshCommand, _case_rows, _duplicates, _view
+from service.cases import CaseView, RevisionCommand, _case_rows, _duplicates, _view
 from service.reporting import BulkCaseRevision
 from service.settings import Settings
 from service.storage import saved_result
@@ -53,7 +53,7 @@ class ExportPreview(BaseModel):
     productionExportEnabled: Literal[False] = False
 
 
-class CreateExport(RefreshCommand):
+class CreateExport(RevisionCommand):
     cases: list[BulkCaseRevision] = Field(min_length=1)
 
 
@@ -66,6 +66,8 @@ class PreviewSelection(BaseModel):
 
 def candidate(row, case):
     issues = []
+    if case["outsideCompletion"]:
+        issues.append("outside_completed")
     if case["excluded"]:
         issues.append("excluded")
     if not case["reason"]:
@@ -126,7 +128,8 @@ def register_export_routes(app: FastAPI, settings: Settings, active_session: Cal
                 if not requested <= available:
                     raise HTTPException(422, "A selected case is unavailable in this preview range")
                 for item in items:
-                    item["selected"] = item["case"]["caseId"] in requested and not item["case"]["excluded"]
+                    item["selected"] = (item["case"]["caseId"] in requested and not item["case"]["excluded"]
+                                        and item["case"]["outsideCompletion"] is None)
             items.sort(key=lambda item: (item["case"]["reportingDate"], item["case"]["caseId"]))
             return {"items": items, "selectedCount": sum(item["selected"] for item in items),
                     "internallyCompleteCount": sum(item["case"]["internallyComplete"] for item in items),

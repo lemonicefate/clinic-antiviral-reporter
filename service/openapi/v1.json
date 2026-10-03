@@ -675,7 +675,8 @@
                 "excluded",
                 "awaiting_reason",
                 "awaiting_reconciliation",
-                "internally_complete"
+                "internally_complete",
+                "outside_completed"
               ],
               "type": "string",
               "default": "active",
@@ -1756,6 +1757,184 @@
         }
       }
     },
+    "/api/v1/outage-rescans/latest": {
+      "get": {
+        "summary": "Latest Rescan",
+        "operationId": "getLatestOutageRescan",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/OutageRescanView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Getlatestoutagerescan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/outside-completion": {
+      "post": {
+        "summary": "Complete",
+        "operationId": "completeOutsideSystem",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteOutside"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
+                    }
+                  ],
+                  "title": "Response Completeoutsidesystem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mappings": {
       "get": {
         "summary": "Get Mappings",
@@ -2463,10 +2642,21 @@
               "awaiting_reason",
               "awaiting_reconciliation",
               "internally_complete",
-              "excluded"
+              "excluded",
+              "outside_completed"
             ],
             "title": "Status",
             "default": "awaiting_reason"
+          },
+          "outsideCompletion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutsideCompletionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -2695,10 +2885,21 @@
               "awaiting_reason",
               "awaiting_reconciliation",
               "internally_complete",
-              "excluded"
+              "excluded",
+              "outside_completed"
             ],
             "title": "Status",
             "default": "awaiting_reason"
+          },
+          "outsideCompletion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutsideCompletionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -2817,6 +3018,52 @@
           "duplicateConcern"
         ],
         "title": "CaseView"
+      },
+      "CompleteOutside": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "sourceSnapshot": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Sourcesnapshot"
+          },
+          "scanJobId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scanjobid"
+          },
+          "paperAndSmisCompleted": {
+            "type": "boolean",
+            "title": "Paperandsmiscompleted"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "sourceSnapshot",
+          "scanJobId",
+          "paperAndSmisCompleted",
+          "reason"
+        ],
+        "title": "CompleteOutside"
       },
       "CreateExport": {
         "properties": {
@@ -3326,6 +3573,98 @@
         ],
         "title": "MappingView"
       },
+      "OutageRescanView": {
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "title": "Jobid"
+          },
+          "dateFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Datefrom"
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date",
+            "title": "Dateto"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobId",
+          "dateFrom",
+          "dateTo",
+          "status",
+          "finishedAt"
+        ],
+        "title": "OutageRescanView"
+      },
+      "OutsideCompletionView": {
+        "properties": {
+          "sourceSnapshot": {
+            "type": "integer",
+            "title": "Sourcesnapshot"
+          },
+          "scanJobId": {
+            "type": "string",
+            "title": "Scanjobid"
+          },
+          "dateFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Datefrom"
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date",
+            "title": "Dateto"
+          },
+          "deviceId": {
+            "type": "string",
+            "title": "Deviceid"
+          },
+          "operator": {
+            "type": "string",
+            "title": "Operator"
+          },
+          "recordedAt": {
+            "type": "number",
+            "title": "Recordedat"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceSnapshot",
+          "scanJobId",
+          "dateFrom",
+          "dateTo",
+          "deviceId",
+          "operator",
+          "recordedAt",
+          "reason"
+        ],
+        "title": "OutsideCompletionView"
+      },
       "PairingView": {
         "properties": {
           "pairingCode": {
@@ -3790,6 +4129,11 @@
             "type": "string",
             "format": "date",
             "title": "Dateto"
+          },
+          "outageRecovery": {
+            "type": "boolean",
+            "title": "Outagerecovery",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -3928,6 +4272,11 @@
             "const": true,
             "title": "Synthetic",
             "default": true
+          },
+          "outageRecovery": {
+            "type": "boolean",
+            "title": "Outagerecovery",
+            "default": false
           }
         },
         "type": "object",

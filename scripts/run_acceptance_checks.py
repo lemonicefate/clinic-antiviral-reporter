@@ -32,7 +32,7 @@ def run_checks(dbf: bool = False, scripts: tuple[str, ...] | None = None) -> Non
                 time.sleep(0.1)
             else:
                 raise RuntimeError("Synthetic acceptance startup timed out")
-            scripts = scripts or (("scanner.cjs",) if dbf else ("case-queue.cjs", "reasons.cjs", "reporting.cjs", "reporting-conflicts.cjs", "source-review.cjs", "mappings.cjs", "export-preview.cjs"))
+            scripts = scripts or (("scanner.cjs", "outages.cjs") if dbf else ("case-queue.cjs", "reasons.cjs", "reporting.cjs", "reporting-conflicts.cjs", "source-review.cjs", "mappings.cjs", "export-preview.cjs"))
             for script in scripts:
                 subprocess.run(["node", str(repo / "client/e2e-real" / script)], cwd=repo / "client",
                                env=environment, check=True, timeout=120)

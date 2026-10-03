@@ -8,6 +8,7 @@ import { ReportingEditor } from "./ReportingEditor";
 import { BulkLotEditor } from "./BulkLotEditor";
 import { SourceReview, SourceQuarantine } from "./SourceReview";
 import { ScanPanel } from "./ScanPanel";
+import { OutsideCompletion } from "./OutsideCompletion";
 
 type Queue = components["schemas"]["QueueView"];
 type Detail = components["schemas"]["CaseDetail"];
@@ -20,7 +21,8 @@ export function CaseQueue({
   session: Session;
 }) {
   const reporting = session.capabilities.includes("reporting");
-  const initialPhysician = reporting ? "" : session.operator;
+  const admin = session.capabilities.includes("admin");
+  const initialPhysician = reporting || admin ? "" : session.operator;
   const [physician, setPhysician] = useState(initialPhysician);
   const [caseStatus, setCaseStatus] = useState<
     | "active"
@@ -30,6 +32,7 @@ export function CaseQueue({
     | "awaiting_reason"
     | "awaiting_reconciliation"
     | "internally_complete"
+    | "outside_completed"
   >("active");
   const [exception, setException] = useState<
     "all" | "duplicate" | "overdue" | "quantity_changed" | "source_changed"
@@ -81,7 +84,7 @@ export function CaseQueue({
             query: {
               physician: selected,
               ...(exactChart ? { chart: exactChart } : {}),
-              ...(reporting
+              ...(reporting || admin
                 ? {
                     caseStatus,
                     exception,
@@ -182,12 +185,12 @@ export function CaseQueue({
   return (
     <section aria-labelledby="case-queue-title">
       <h2 id="case-queue-title">
-        {reporting ? "回報管理清單" : "醫師工作清單"}
+        {reporting ? "回報管理清單" : admin ? "管理者案件清單" : "醫師工作清單"}
       </h2>
       <p className="notice">
         合成資料測試：非真實 HIS。來源鍵與編碼尚未完成真機驗證；正式匯出停用。
       </p>
-      <ScanPanel api={api} />
+      <ScanPanel api={api} admin={admin} />
       <form onSubmit={search} className="queue-filters">
         <label>
           醫師篩選
@@ -223,7 +226,7 @@ export function CaseQueue({
             placeholder="例如 SYN-0001"
           />
         </label>
-        {reporting && (
+        {(reporting || admin) && (
           <>
             <label>
               狀態篩選
@@ -235,13 +238,14 @@ export function CaseQueue({
                   setCaseStatus(e.target.value as typeof caseStatus)
                 }
               >
-                <option value="active">未排除案件</option>
+                <option value="active">處理中案件</option>
                 <option value="all">所有案件</option>
                 <option value="unfinished">尚未補齊</option>
                 <option value="awaiting_reason">待填理由</option>
                 <option value="awaiting_reconciliation">待核對批號</option>
                 <option value="internally_complete">內部資料已齊</option>
                 <option value="excluded">已排除</option>
+                <option value="outside_completed">系統外已完成</option>
               </select>
             </label>
             <label>
@@ -355,7 +359,7 @@ export function CaseQueue({
                           <input
                             type="checkbox"
                             aria-label={"選取 " + item.sourceOrder}
-                            disabled={item.excluded}
+                            disabled={item.excluded || !!item.outsideCompletion}
                             checked={selected.includes(item.caseId)}
                             onChange={(e) =>
                               setSelected(
@@ -407,6 +411,7 @@ export function CaseQueue({
                             awaiting_reconciliation: "理由已填，待回報核對",
                             internally_complete: "內部資料已齊；正式匯出停用",
                             excluded: "已排除",
+                            outside_completed: "系統外已完成",
                           }[item.status]
                         }
                       </td>
@@ -467,11 +472,54 @@ export function CaseQueue({
             </p>
           )}
           <p>目前理由：{detail.reason ?? "尚未填寫"}</p>
+          {detail.outsideCompletion && (
+            <section aria-label="系統外完成紀錄">
+              <h3>系統外已完成</h3>
+              <p>{detail.outsideCompletion.reason}</p>
+              <p>
+                補記操作身分：{detail.outsideCompletion.operator}；時間：
+                {new Date(
+                  detail.outsideCompletion.recordedAt * 1000,
+                ).toLocaleString("zh-TW")}
+              </p>
+              <p>
+                補掃範圍：{detail.outsideCompletion.dateFrom} 至{" "}
+                {detail.outsideCompletion.dateTo}；關聯來源版本：
+                {detail.outsideCompletion.sourceSnapshot}
+              </p>
+              <p>
+                原回報量 {detail.reportedQuantity} 顆；批號：
+                {detail.lots
+                  ?.map((lot) => `${lot.lot}：${lot.quantity} 顆`)
+                  .join("、") || "未填"}
+              </p>
+              <p>此為獨立終態，保留補記時的來源關聯及原有人工資料。</p>
+            </section>
+          )}
+          {admin && !detail.outsideCompletion && (
+            <OutsideCompletion
+              key={"outside:" + detail.caseId + ":" + detail.revision}
+              api={api}
+              detail={detail}
+              onReload={setDetail}
+              onSaved={() => {
+                const expected = generation.current + 1;
+                void load().then((ok) => {
+                  if (generation.current === expected)
+                    setStatus(
+                      ok
+                        ? "系統外完成已補記，清單已更新。"
+                        : "系統外完成已補記；請重新查詢清單。",
+                    );
+                });
+              }}
+            />
+          )}
           <SourceReview
             key={"source:" + detail.caseId + ":" + detail.revision}
             api={api}
             detail={detail}
-            reporting={reporting}
+            reporting={reporting && !detail.outsideCompletion}
             onReload={setDetail}
             onSaved={() => {
               const expected = generation.current + 1;
@@ -485,7 +533,7 @@ export function CaseQueue({
               });
             }}
           />
-          {reporting && (
+          {reporting && !detail.outsideCompletion && (
             <ReportingEditor
               key={"reporting:" + detail.caseId + ":" + detail.revision}
               api={api}
@@ -504,27 +552,28 @@ export function CaseQueue({
               }}
             />
           )}
-          {session.capabilities.some(
-            (c) => c === "physician" || c === "reporting",
-          ) && (
-            <ReasonEditor
-              key={`${detail.caseId}:${detail.revision}`}
-              api={api}
-              detail={detail}
-              onReload={setDetail}
-              onSaved={() => {
-                const expected = generation.current + 1;
-                void load().then((ok) => {
-                  if (generation.current === expected)
-                    setStatus(
-                      ok
-                        ? "用藥理由已儲存，清單已更新。"
-                        : "用藥理由已儲存；清單讀取失敗，請重新查詢。",
-                    );
-                });
-              }}
-            />
-          )}
+          {!detail.outsideCompletion &&
+            session.capabilities.some(
+              (c) => c === "physician" || c === "reporting",
+            ) && (
+              <ReasonEditor
+                key={`${detail.caseId}:${detail.revision}`}
+                api={api}
+                detail={detail}
+                onReload={setDetail}
+                onSaved={() => {
+                  const expected = generation.current + 1;
+                  void load().then((ok) => {
+                    if (generation.current === expected)
+                      setStatus(
+                        ok
+                          ? "用藥理由已儲存，清單已更新。"
+                          : "用藥理由已儲存；清單讀取失敗，請重新查詢。",
+                      );
+                  });
+                }}
+              />
+            )}
           <details>
             <summary>原始合成來源（{detail.snapshots.length} 版）</summary>
             {detail.snapshots.map((snapshot) => (

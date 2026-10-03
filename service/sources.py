@@ -12,11 +12,11 @@ from uuid import UUID, uuid4
 from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from service.cases import RefreshCommand, _case_rows, _duplicates, _view
+from service.cases import RevisionCommand, _case_rows, _duplicates, _view
 from service.storage import saved_result, save_result
 
 
-class ReviewSource(RefreshCommand):
+class ReviewSource(RevisionCommand):
     sourceSnapshot: int = Field(gt=0, strict=True)
     resolution: Literal["update", "retain", "exclude"]
     reason: str = Field(min_length=1, max_length=500, pattern=r"\S")
@@ -144,7 +144,7 @@ def register_source_routes(app: FastAPI, permitted: Callable, mutation_result) -
             before = _view(row, facts, _duplicates(rows))
             if (row["revision"] != command.expectedRevision or
                     row["latest_sequence"] != command.sourceSnapshot or not before["sourceReviewRequired"] or
-                    before["sourceUnresolved"]):
+                    before["sourceUnresolved"] or before["outsideCompletion"]):
                 raise HTTPException(409, {"caseId": str(case_id), "currentRevision": row["revision"],
                                          "differences": before})
             reporting_snapshot = command.sourceSnapshot if command.resolution == "update" else row["reporting_snapshot"]

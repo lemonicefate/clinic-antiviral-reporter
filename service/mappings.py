@@ -8,7 +8,7 @@ from typing import Annotated, Callable, Literal
 from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from service.cases import RefreshCommand, clinic_today
+from service.cases import RevisionCommand, clinic_today
 from service.storage import saved_result, save_result
 
 
@@ -19,7 +19,7 @@ class MappingProfile(BaseModel):
     quantityRule: Literal["integer_capsules"] = "integer_capsules"
 
 
-class SaveMapping(RefreshCommand, MappingProfile):
+class SaveMapping(RevisionCommand, MappingProfile):
     effectiveFrom: datetime
     initialDateFrom: date
     enabled: bool = Field(strict=True)

@@ -99,8 +99,8 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.fail("Future schema should not start")
             self.assertEqual(path.read_bytes(), original)
 
-    def test_version_three_through_seven_history_survives_mapping_migration(self):
-        for version in (3, 4, 5, 6, 7):
+    def test_version_three_through_eight_history_survives_migration(self):
+        for version in (3, 4, 5, 6, 7, 8):
             with tempfile.TemporaryDirectory() as directory:
                 credential = secrets.token_urlsafe(32)
                 case_id = "11111111-1111-4111-8111-111111111111"
@@ -153,7 +153,7 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     db.execute("INSERT INTO source_snapshots VALUES (2,?,2,?)", (case_id, json.dumps(facts | {"CH012M1.USE_TAMT": "5"})))
                     db.execute("INSERT INTO source_quarantine VALUES (1,?,1,'{}','source_not_observed',2,3,0)", ("synthetic-v1:SYN-OLD-ORDER",))
                     db.commit()
-                if version == 7:
+                if version >= 7:
                     db.executescript("""
                         CREATE TABLE scan_state(id INTEGER PRIMARY KEY,revision INTEGER NOT NULL,current_job TEXT,last_success REAL);
                         INSERT INTO scan_state VALUES (1,2,'synthetic-old-job',100);
@@ -164,12 +164,22 @@ class MigrationAcceptanceTest(unittest.TestCase):
                             'v3-admin','SYN-DR-A',98,99,100,NULL,'{"created":1}');
                         PRAGMA user_version=7;
                     """)
+                if version == 8:
+                    db.executescript("""
+                        CREATE TABLE mapping_versions(sequence INTEGER PRIMARY KEY,effective_from TEXT UNIQUE,
+                            initial_date_from TEXT,internal_code TEXT,nhi_code TEXT,material_value TEXT,
+                            quantity_rule TEXT,enabled INTEGER,reason TEXT,device_id TEXT,operator TEXT,created_at REAL);
+                        ALTER TABLE source_snapshots ADD COLUMN mapping_version INTEGER;
+                        ALTER TABLE scan_runs ADD COLUMN mapping_revision INTEGER NOT NULL DEFAULT 0;
+                        PRAGMA user_version=8;
+                    """)
                 db.close()
                 with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
                     detail = client.get(f"/api/v1/cases/{case_id}", headers={
                         "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
                     self.assertEqual(detail["snapshots"][0]["raw"], facts)
                     self.assertEqual(detail["revision"], 1)
+                    self.assertIsNone(detail["outsideCompletion"])
                     self.assertEqual(detail["reportedQuantity"], 10)
                     self.assertEqual(detail["reason"], "23:未滿5歲及65歲以上之類流感患者" if version >= 4 else None)
                     self.assertEqual(detail["lots"], [{"lot": "SYN-OLD-LOT", "quantity": 10}] if version >= 5 else [])
@@ -180,7 +190,7 @@ class MigrationAcceptanceTest(unittest.TestCase):
                         "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
                     self.assertIsNone(mappings["goLiveAt"])
                     self.assertEqual(mappings["versions"], [])
-                    if version == 7:
+                    if version >= 7:
                         scan = client.get("/api/v1/scans/status", headers={
                             "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
                         self.assertEqual(scan["jobId"], "synthetic-old-job")

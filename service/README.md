@@ -4,8 +4,10 @@ Python 3.12/FastAPI central service. Issue #7 is in progress: device/session API
 and central settings are implemented alongside a Windows device-management client.
 Deployment acceptance remains open. The #8 slice adds a synthetic case queue and
 detail API. #12 adds an explicitly enabled synthetic-file scanner; no live HIS
-reader or export endpoint is enabled. See `docs/validation/scanner-progress.md`
-for configuration, schema v7 migration/recovery and automated evidence.
+reader or production export is enabled. The current schema is v9; see
+[outage recovery](../docs/validation/outage-recovery-progress.md) for administrator
+recovery scans, terminal outside completion, migration/rollback and acceptance.
+Earlier scanner evidence remains in `docs/validation/scanner-progress.md`.
 
 ## Development
 

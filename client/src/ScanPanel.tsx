@@ -26,13 +26,20 @@ const diagnostics: Record<string, string> = {
   service_restarted: "中央重新啟動，上次掃描中斷",
 };
 
-export function ScanPanel({ api }: { api: ReturnType<typeof clinicApi> }) {
+export function ScanPanel({
+  api,
+  admin = false,
+}: {
+  api: ReturnType<typeof clinicApi>;
+  admin?: boolean;
+}) {
   const [scan, setScan] = useState<Scan>();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [outageRecovery, setOutageRecovery] = useState(false);
   const active = useRef(true),
     generation = useRef(0),
     sending = useRef(false);
@@ -73,6 +80,7 @@ export function ScanPanel({ api }: { api: ReturnType<typeof clinicApi> }) {
       expectedRevision: scan.revision,
       dateFrom: from,
       dateTo: to,
+      outageRecovery,
     };
     const body = JSON.stringify(fields);
     if (pending.current?.body !== body)
@@ -144,6 +152,16 @@ export function ScanPanel({ api }: { api: ReturnType<typeof clinicApi> }) {
                   }
                 >
                   <legend>指定日期重新掃描與重試隔離來源</legend>
+                  {admin && (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={outageRecovery}
+                        onChange={(e) => setOutageRecovery(e.target.checked)}
+                      />
+                      停機復原補掃（管理者）
+                    </label>
+                  )}
                   <label>
                     重掃開始日期
                     <input

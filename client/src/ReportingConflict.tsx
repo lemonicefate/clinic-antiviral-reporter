@@ -36,6 +36,8 @@ export function ReportingConflict({
     ["excluded", "排除狀態"],
     ["reason", "用藥理由"],
     ["exclusionReason", "排除／納入原因"],
+    ["status", "案件狀態"],
+    ["latestSourceSnapshot", "最新來源版本"],
   ];
   return (
     <section aria-label="回報資料衝突">
@@ -76,6 +78,7 @@ export function ReportingConflict({
 }
 
 function display(value: unknown): string {
+  if (value === "outside_completed") return "系統外已完成";
   if (value === null) return "未填";
   if (value === undefined) return "未提供";
   if (typeof value === "boolean") return value ? "已排除" : "未排除";
