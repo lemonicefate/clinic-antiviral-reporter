@@ -29,10 +29,10 @@ class Store:
             self.db = sqlite3.connect(directory / "central.sqlite3", check_same_thread=False)
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
-            self.db.execute("PRAGMA journal_mode=WAL")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
             if version > 2:
                 raise RuntimeError("Central schema is newer than this service")
+            self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
                 self.db.executescript("""
                     BEGIN IMMEDIATE;

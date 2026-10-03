@@ -1,0 +1,68 @@
+import hashlib
+import json
+from pathlib import Path
+import secrets
+import sqlite3
+import tempfile
+import unittest
+from uuid import uuid4
+
+from fastapi.testclient import TestClient
+
+from service.app import create_app
+from service.settings import Settings
+
+
+class MigrationAcceptanceTest(unittest.TestCase):
+    def settings(self, directory):
+        return Settings.from_environment({
+            "CLINIC_REPORTER_STATE_DIR": directory,
+            "CLINIC_REPORTER_HIS_SOURCE_PATH": r"\\synthetic-his\data",
+            "CLINIC_REPORTER_BACKUP_ROOT": r"\\synthetic-his\backup",
+        })
+
+    def test_version_one_history_and_session_survive_pairing_migration(self):
+        # Synthetic input fixture for the published v1 on-disk contract. Observe
+        # migration results only through the versioned API, not private tables.
+        with tempfile.TemporaryDirectory() as directory:
+            credential = secrets.token_urlsafe(32)
+            with sqlite3.connect(Path(directory) / "central.sqlite3") as db:
+                db.executescript("""
+                    CREATE TABLE devices(id TEXT PRIMARY KEY,name TEXT NOT NULL,credential_hash TEXT UNIQUE NOT NULL,
+                        capabilities TEXT NOT NULL,revision INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
+                    CREATE TABLE sessions(id TEXT PRIMARY KEY,device_id TEXT NOT NULL REFERENCES devices(id),
+                        operator TEXT NOT NULL,expires_at REAL NOT NULL);
+                    CREATE TABLE commands(actor TEXT NOT NULL,request_id TEXT NOT NULL,result TEXT NOT NULL,
+                        PRIMARY KEY(actor,request_id));
+                    CREATE TABLE audit_events(sequence INTEGER PRIMARY KEY,kind TEXT NOT NULL,device_id TEXT NOT NULL,
+                        operator TEXT NOT NULL,occurred_at REAL NOT NULL,changes TEXT NOT NULL);
+                    PRAGMA user_version=1;
+                """)
+                db.execute("INSERT INTO devices VALUES (?,?,?,?,?,?)", ("old-admin", "Synthetic v1 admin",
+                           hashlib.sha256(credential.encode()).hexdigest(), '["admin"]', 1, 0))
+                db.execute("INSERT INTO sessions VALUES (?,?,?,?)", ("old-session", "old-admin", "original operator", 9999999999))
+                db.execute("INSERT INTO audit_events VALUES (1,?,?,?,?,?)", ("synthetic_v1_history", "old-admin",
+                           "original operator", 1, json.dumps({"reason": "preserve this original reason"})))
+            db.close()
+            with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
+                headers = {"Authorization": "Bearer " + credential, "X-Session-Id": "old-session"}
+                session = client.get("/api/v1/session", headers=headers)
+                self.assertEqual(session.status_code, 200)
+                self.assertEqual(session.json()["operator"], "original operator")
+                history = client.get("/api/v1/audit", headers=headers).json()
+                self.assertEqual(history[0]["changes"], {"reason": "preserve this original reason"})
+                pairing = client.post("/api/v1/pairings", headers=headers, json={
+                    "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["physician"]})
+                self.assertEqual(pairing.status_code, 200, pairing.text)
+
+    def test_newer_schema_is_rejected_without_changing_its_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "central.sqlite3"
+            with sqlite3.connect(path) as db:
+                db.execute("PRAGMA user_version=99")
+            db.close()
+            original = path.read_bytes()
+            with self.assertRaisesRegex(RuntimeError, "newer"):
+                with TestClient(create_app(self.settings(directory)), base_url="https://testserver"):
+                    self.fail("Future schema should not start")
+            self.assertEqual(path.read_bytes(), original)

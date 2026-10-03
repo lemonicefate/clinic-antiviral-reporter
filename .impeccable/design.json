@@ -1,0 +1,407 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T00:36:35.598Z",
+  "title": "Design System: 公費抗病毒藥劑回報",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "primary",
+        "tonalRamp": [
+          "oklch(15.00% 0.08518 239.34)",
+          "oklch(26.43% 0.08518 239.34)",
+          "oklch(37.86% 0.08518 239.34)",
+          "oklch(49.29% 0.08518 239.34)",
+          "oklch(60.71% 0.08518 239.34)",
+          "oklch(72.14% 0.08518 239.34)",
+          "oklch(83.57% 0.08518 239.34)",
+          "oklch(95.00% 0.08518 239.34)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "primary hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.06919 239.73)",
+          "oklch(26.43% 0.06919 239.73)",
+          "oklch(37.86% 0.06919 239.73)",
+          "oklch(49.29% 0.06919 239.73)",
+          "oklch(60.71% 0.06919 239.73)",
+          "oklch(72.14% 0.06919 239.73)",
+          "oklch(83.57% 0.06919 239.73)",
+          "oklch(95.00% 0.06919 239.73)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "canvas",
+        "tonalRamp": [
+          "oklch(15.00% 0.00342 247.86)",
+          "oklch(26.43% 0.00342 247.86)",
+          "oklch(37.86% 0.00342 247.86)",
+          "oklch(49.29% 0.00342 247.86)",
+          "oklch(60.71% 0.00342 247.86)",
+          "oklch(72.14% 0.00342 247.86)",
+          "oklch(83.57% 0.00342 247.86)",
+          "oklch(95.00% 0.00342 247.86)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "text",
+        "tonalRamp": [
+          "oklch(15.00% 0.03736 246.20)",
+          "oklch(26.43% 0.03736 246.20)",
+          "oklch(37.86% 0.03736 246.20)",
+          "oklch(49.29% 0.03736 246.20)",
+          "oklch(60.71% 0.03736 246.20)",
+          "oklch(72.14% 0.03736 246.20)",
+          "oklch(83.57% 0.03736 246.20)",
+          "oklch(95.00% 0.03736 246.20)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "text muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.03761 245.81)",
+          "oklch(26.43% 0.03761 245.81)",
+          "oklch(37.86% 0.03761 245.81)",
+          "oklch(49.29% 0.03761 245.81)",
+          "oklch(60.71% 0.03761 245.81)",
+          "oklch(72.14% 0.03761 245.81)",
+          "oklch(83.57% 0.03761 245.81)",
+          "oklch(95.00% 0.03761 245.81)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "border",
+        "tonalRamp": [
+          "oklch(15.00% 0.01411 247.99)",
+          "oklch(26.43% 0.01411 247.99)",
+          "oklch(37.86% 0.01411 247.99)",
+          "oklch(49.29% 0.01411 247.99)",
+          "oklch(60.71% 0.01411 247.99)",
+          "oklch(72.14% 0.01411 247.99)",
+          "oklch(83.57% 0.01411 247.99)",
+          "oklch(95.00% 0.01411 247.99)"
+        ]
+      },
+      "input-border": {
+        "role": "neutral",
+        "displayName": "input border",
+        "tonalRamp": [
+          "oklch(15.00% 0.03120 245.09)",
+          "oklch(26.43% 0.03120 245.09)",
+          "oklch(37.86% 0.03120 245.09)",
+          "oklch(49.29% 0.03120 245.09)",
+          "oklch(60.71% 0.03120 245.09)",
+          "oklch(72.14% 0.03120 245.09)",
+          "oklch(83.57% 0.03120 245.09)",
+          "oklch(95.00% 0.03120 245.09)"
+        ]
+      },
+      "placeholder": {
+        "role": "neutral",
+        "displayName": "placeholder",
+        "tonalRamp": [
+          "oklch(15.00% 0.03419 246.94)",
+          "oklch(26.43% 0.03419 246.94)",
+          "oklch(37.86% 0.03419 246.94)",
+          "oklch(49.29% 0.03419 246.94)",
+          "oklch(60.71% 0.03419 246.94)",
+          "oklch(72.14% 0.03419 246.94)",
+          "oklch(83.57% 0.03419 246.94)",
+          "oklch(95.00% 0.03419 246.94)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.10136 242.19)",
+          "oklch(26.43% 0.10136 242.19)",
+          "oklch(37.86% 0.10136 242.19)",
+          "oklch(49.29% 0.10136 242.19)",
+          "oklch(60.71% 0.10136 242.19)",
+          "oklch(72.14% 0.10136 242.19)",
+          "oklch(83.57% 0.10136 242.19)",
+          "oklch(95.00% 0.10136 242.19)"
+        ]
+      },
+      "secondary-hover": {
+        "role": "neutral",
+        "displayName": "secondary hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.00837 236.56)",
+          "oklch(26.43% 0.00837 236.56)",
+          "oklch(37.86% 0.00837 236.56)",
+          "oklch(49.29% 0.00837 236.56)",
+          "oklch(60.71% 0.00837 236.56)",
+          "oklch(72.14% 0.00837 236.56)",
+          "oklch(83.57% 0.00837 236.56)",
+          "oklch(95.00% 0.00837 236.56)"
+        ]
+      },
+      "notice": {
+        "role": "neutral",
+        "displayName": "notice",
+        "tonalRamp": [
+          "oklch(15.00% 0.01007 238.51)",
+          "oklch(26.43% 0.01007 238.51)",
+          "oklch(37.86% 0.01007 238.51)",
+          "oklch(49.29% 0.01007 238.51)",
+          "oklch(60.71% 0.01007 238.51)",
+          "oklch(72.14% 0.01007 238.51)",
+          "oklch(83.57% 0.01007 238.51)",
+          "oklch(95.00% 0.01007 238.51)"
+        ]
+      },
+      "table-heading": {
+        "role": "neutral",
+        "displayName": "table heading",
+        "tonalRamp": [
+          "oklch(15.00% 0.00932 242.84)",
+          "oklch(26.43% 0.00932 242.84)",
+          "oklch(37.86% 0.00932 242.84)",
+          "oklch(49.29% 0.00932 242.84)",
+          "oklch(60.71% 0.00932 242.84)",
+          "oklch(72.14% 0.00932 242.84)",
+          "oklch(83.57% 0.00932 242.84)",
+          "oklch(95.00% 0.00932 242.84)"
+        ]
+      },
+      "error-text": {
+        "role": "neutral",
+        "displayName": "error text",
+        "tonalRamp": [
+          "oklch(15.00% 0.12579 21.61)",
+          "oklch(26.43% 0.12579 21.61)",
+          "oklch(37.86% 0.12579 21.61)",
+          "oklch(49.29% 0.12579 21.61)",
+          "oklch(60.71% 0.12579 21.61)",
+          "oklch(72.14% 0.12579 21.61)",
+          "oklch(83.57% 0.12579 21.61)",
+          "oklch(95.00% 0.12579 21.61)"
+        ]
+      },
+      "error-surface": {
+        "role": "neutral",
+        "displayName": "error surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.01624 17.44)",
+          "oklch(26.43% 0.01624 17.44)",
+          "oklch(37.86% 0.01624 17.44)",
+          "oklch(49.29% 0.01624 17.44)",
+          "oklch(60.71% 0.01624 17.44)",
+          "oklch(72.14% 0.01624 17.44)",
+          "oklch(83.57% 0.01624 17.44)",
+          "oklch(95.00% 0.01624 17.44)"
+        ]
+      },
+      "error-border": {
+        "role": "neutral",
+        "displayName": "error border",
+        "tonalRamp": [
+          "oklch(15.00% 0.06448 13.77)",
+          "oklch(26.43% 0.06448 13.77)",
+          "oklch(37.86% 0.06448 13.77)",
+          "oklch(49.29% 0.06448 13.77)",
+          "oklch(60.71% 0.06448 13.77)",
+          "oklch(72.14% 0.06448 13.77)",
+          "oklch(83.57% 0.06448 13.77)",
+          "oklch(95.00% 0.06448 13.77)"
+        ]
+      },
+      "selection": {
+        "role": "neutral",
+        "displayName": "selection",
+        "tonalRamp": [
+          "oklch(15.00% 0.03458 235.90)",
+          "oklch(26.43% 0.03458 235.90)",
+          "oklch(37.86% 0.03458 235.90)",
+          "oklch(49.29% 0.03458 235.90)",
+          "oklch(60.71% 0.03458 235.90)",
+          "oklch(72.14% 0.03458 235.90)",
+          "oklch(83.57% 0.03458 235.90)",
+          "oklch(95.00% 0.03458 235.90)"
+        ]
+      },
+      "selection-text": {
+        "role": "neutral",
+        "displayName": "selection text",
+        "tonalRamp": [
+          "oklch(15.00% 0.05317 240.09)",
+          "oklch(26.43% 0.05317 240.09)",
+          "oklch(37.86% 0.05317 240.09)",
+          "oklch(49.29% 0.05317 240.09)",
+          "oklch(60.71% 0.05317 240.09)",
+          "oklch(72.14% 0.05317 240.09)",
+          "oklch(83.57% 0.05317 240.09)",
+          "oklch(95.00% 0.05317 240.09)"
+        ]
+      },
+      "scrollbar": {
+        "role": "neutral",
+        "displayName": "scrollbar",
+        "tonalRamp": [
+          "oklch(15.00% 0.03243 243.67)",
+          "oklch(26.43% 0.03243 243.67)",
+          "oklch(37.86% 0.03243 243.67)",
+          "oklch(49.29% 0.03243 243.67)",
+          "oklch(60.71% 0.03243 243.67)",
+          "oklch(72.14% 0.03243 243.67)",
+          "oklch(83.57% 0.03243 243.67)",
+          "oklch(95.00% 0.03243 243.67)"
+        ]
+      },
+      "scrollbar-track": {
+        "role": "neutral",
+        "displayName": "scrollbar track",
+        "tonalRamp": [
+          "oklch(15.00% 0.00588 239.82)",
+          "oklch(26.43% 0.00588 239.82)",
+          "oklch(37.86% 0.00588 239.82)",
+          "oklch(49.29% 0.00588 239.82)",
+          "oklch(60.71% 0.00588 239.82)",
+          "oklch(72.14% 0.00588 239.82)",
+          "oklch(83.57% 0.00588 239.82)",
+          "oklch(95.00% 0.00588 239.82)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page headline",
+        "purpose": "Operational heading; 27px at the narrow breakpoint."
+      },
+      "code": {
+        "displayName": "Pairing code",
+        "purpose": "Read-only result."
+      }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "stacked-administration",
+        "value": "800px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Native action with hover, focus and disabled states.",
+      "html": "<button class=\"ds-primary\">連線</button>",
+      "css": ".ds-primary{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;font-weight:600;border:1px solid var(--accent);border-radius:6px;padding:10px 20px;background:var(--accent);color:white;cursor:pointer;}.ds-primary:hover{background:#103f5b;}.ds-primary:focus-visible{outline:3px solid #276d9c;outline-offset:3px;}.ds-primary:disabled{opacity:.55;cursor:not-allowed;}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Native action with hover, focus and disabled states.",
+      "html": "<button class=\"ds-secondary\">重新載入</button>",
+      "css": ".ds-secondary{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:10px 20px;background:white;color:var(--accent);cursor:pointer;}.ds-secondary:hover{background:#edf3f7;}.ds-secondary:focus-visible{outline:3px solid #276d9c;outline-offset:3px;}.ds-secondary:disabled{opacity:.55;cursor:not-allowed;}"
+    },
+    {
+      "name": "Labeled input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Visible label with native form control.",
+      "html": "<label class=\"ds-field\">操作身分<input autocomplete=\"off\" placeholder=\"測試管理者\"></label>",
+      "css": ".ds-field{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;display:block;font-weight:600;}.ds-field input,.ds-field select{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;width:100%;margin-top:6px;border:1px solid #8c9eae;border-radius:6px;padding:10px 12px;background:white;color:#203242;caret-color:var(--accent);}.ds-field input::placeholder{color:#617384;}.ds-field input:focus-visible,.ds-field select:focus-visible{outline:3px solid #276d9c;outline-offset:3px;}"
+    },
+    {
+      "name": "Capability select",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Visible label with native form control.",
+      "html": "<label class=\"ds-field\">新裝置能力<select><option>醫師</option><option>回報管理</option><option>管理者</option></select></label>",
+      "css": ".ds-field{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;display:block;font-weight:600;}.ds-field input,.ds-field select{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;width:100%;margin-top:6px;border:1px solid #8c9eae;border-radius:6px;padding:10px 12px;background:white;color:#203242;caret-color:var(--accent);}.ds-field input::placeholder{color:#617384;}.ds-field input:focus-visible,.ds-field select:focus-visible{outline:3px solid #276d9c;outline-offset:3px;}"
+    },
+    {
+      "name": "Connection container",
+      "kind": "card",
+      "refersTo": "connection-form",
+      "description": "Bordered form surface; heading-only preview.",
+      "html": "<section class=\"ds-form\"><h2>本機連線設定</h2></section>",
+      "css": ".ds-form{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;background:white;color:#203242;border:1px solid var(--border);border-radius:12px;padding:28px;display:grid;gap:20px;}.ds-form h2{font-size:21px;margin:0;}@media(max-width:800px){.ds-form{padding:22px;}}"
+    },
+    {
+      "name": "Attribution notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "Persistent identity explanation.",
+      "html": "<p class=\"ds-notice\">操作身分用於篩選與稽核，不代表已驗證本人。切換身分不會增加裝置能力。</p>",
+      "css": ".ds-notice{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;color:#203242;max-width:70ch;margin:24px 0;background:#eaf1f6;padding:14px 18px;border-radius:6px;}"
+    },
+    {
+      "name": "Recovery alert",
+      "kind": "custom",
+      "refersTo": "error",
+      "description": "Error and recovery instruction.",
+      "html": "<p role=\"alert\" class=\"ds-error\">裝置清單載入失敗，請重新載入；現有資料可能已變更。</p>",
+      "css": ".ds-error{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;max-width:70ch;margin:0;color:#82262b;background:#fff0f0;border:1px solid #d6a0a4;padding:12px 16px;border-radius:6px;}"
+    },
+    {
+      "name": "Device table",
+      "kind": "custom",
+      "description": "Semantic table with synthetic preview content.",
+      "html": "<div class=\"ds-scroll\"><table class=\"ds-table\"><thead><tr><th>裝置名稱</th><th>能力</th><th>狀態</th></tr></thead><tbody><tr><td>測試診間 A</td><td>醫師</td><td>已授權</td></tr></tbody></table></div>",
+      "css": ".ds-scroll{overflow-x:auto;}.ds-table{font-family:\"Segoe UI\",\"Microsoft JhengHei\",sans-serif;font-size:16px;line-height:1.6;color:#203242;width:100%;border-collapse:collapse;background:white;font-variant-numeric:tabular-nums;}.ds-table th,.ds-table td{text-align:left;padding:14px 18px;border-bottom:1px solid var(--border);}.ds-table th{background:#e8eef3;font-weight:600;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Windows clinic administration",
+    "overview": "This descriptive name records the approved operating context, not a new brand. The implemented React interface inside the Windows Tauri client uses Traditional Chinese, familiar administrative forms and a device table. A light operating surface, blue actions and direct status language support deliberate work.\n\nThis record covers connection setup, session attribution, device authorization, pairing and revocation only. It does not establish completed patient, reporting or export screens. Visual authority is [PRODUCT.md](PRODUCT.md) and the approved SPEC v1.0 §8 defaults, subject to the authoritative v1.1 amendment. No separate branding or image composition was approved.",
+    "keyCharacteristics": [
+      "Light surfaces separated by borders and spacing.",
+      "Traditional Chinese labels and visible operational state.",
+      "Blue action controls with explicit keyboard focus.",
+      "Disconnection guidance that names the approved paper fallback."
+    ],
+    "rules": [
+      {
+        "name": "The Explicit State Rule",
+        "body": "Pair semantic color with readable state or recovery text; color alone does not explain an operation.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat Surface Rule",
+        "body": "Preserve the current border-and-tone grouping when extending these administrative surfaces.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use Traditional Chinese operational labels and the CONTEXT glossary.",
+      "**Do** retain visible labels, native form semantics and the explicit keyboard outline.",
+      "**Do** distinguish loading, load failure, empty results and successful operations.",
+      "**Do** preserve readable paper-fallback guidance when the central service is unavailable.",
+      "**Do** use synthetic content for visual evidence and component previews."
+    ],
+    "donts": [
+      "**Don't** describe operation identity as verified personal authentication.",
+      "**Don't** imply offline viewing, editing or export in the disconnected surface.",
+      "**Don't** present this device/session implementation as the completed reporting application.",
+      "**Don't** invent clinic branding, decorative imagery or a separate display typography system from this record."
+    ]
+  }
+}

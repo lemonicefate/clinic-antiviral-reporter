@@ -1,0 +1,17 @@
+[package]
+name = "clinic-antiviral-reporter"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+keyring = { version = "3.6", features = ["windows-native"] }
+getrandom = "0.3"
+base64 = "0.22"

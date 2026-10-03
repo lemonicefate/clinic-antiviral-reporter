@@ -67,6 +67,9 @@ node_modules/
 dist/
 target/
 src-tauri/target/
+test-results/
+playwright-report/
+**/src-tauri/gen/
 
 # Editors and operating systems
 .idea/

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Local clinic window; central authority is checked by the service.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

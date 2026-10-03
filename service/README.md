@@ -1,8 +1,9 @@
 # Central service
 
 Python 3.12/FastAPI central service. Issue #7 is in progress: device/session APIs
-and central settings are implemented; the desktop workflow and full acceptance
-are not complete. No HIS scanner, patient workflow, or export endpoint is enabled.
+and central settings are implemented alongside a Windows device-management client.
+Deployment acceptance remains open. No HIS scanner, patient workflow, or export
+endpoint is enabled.
 
 ## Development
 
@@ -12,7 +13,7 @@ From the repository root on Windows:
 py -3.12 -m venv .venv
 .venv/Scripts/python -m pip install -r requirements-dev.txt
 .venv/Scripts/python -m unittest discover -s tests -v
-.venv/Scripts/python -m mypy service scripts
+.venv/Scripts/python -m mypy --check-untyped-defs service scripts
 .venv/Scripts/python -m scripts.generate_openapi
 ```
 
@@ -37,8 +38,9 @@ While the service is stopped, initialize the first administrator:
 The command prompts without echo for a freshly generated 32-byte random device
 key encoded as 43 base64url characters without padding. It does not generate or
 print a secret. Central storage keeps only its SHA-256 digest. Do not place device
-keys in command arguments, shell history, logs, documentation, or Git. The desktop
-credential storage/import flow is still pending. Provisioning cannot run while the
+keys in command arguments, shell history, logs, documentation, or Git. Import the
+key through the desktop initial-device form; the native process stores it in Windows
+Credential Manager. Provisioning cannot run while the
 service owns the state directory or initialize a second administrator.
 
 Start the HTTPS listener with the central certificate and key:
@@ -50,13 +52,15 @@ Start the HTTPS listener with the central certificate and key:
 Use a certificate trusted by the managed clients. HTTP is rejected, proxy headers
 are not trusted, access logging is disabled, and only one worker is allowed by the
 entry point. The OS ownership lock also rejects a second independent process.
-Firewall/network/certificate provisioning and real TLS verification remain M0 work.
+Synthetic real-listener tests verify trusted and untrusted TLS. Actual clinic
+firewall/network/certificate provisioning and native connection remain M0 work.
 
 Every protected request carries the individual device key as a Bearer credential;
 session-bound operations also carry `X-Session-Id`. A session's operator is an
 attribution claim, never authorization. Sessions expire after eight hours and every
 request rechecks device revocation. Administrators issue single-use pairing codes
-with a ten-minute lifetime and chosen capabilities. Codes also become unusable if
+with a ten-minute lifetime and chosen capabilities. The last administrator cannot
+be revoked until another administrator has been paired. Codes also become unusable if
 their issuing device is revoked. Pairing responses are sensitive; keep them private.
 
 All mutation envelopes contain `requestId` and `expectedRevision`. New sessions,
@@ -69,7 +73,9 @@ read API requires an administrator device; there is no audit edit/delete API.
 SQLite user_version 1 introduces devices, sessions, command results, and audit;
 version 2 adds pairing grants. Migration runs under exclusive service ownership.
 The service rejects a database from a newer schema. Tests use isolated temporary
-state, exercise a cold restart, and verify ownership rejection and retry history.
+state, exercise a cold restart and v1-to-v2 migration, and verify ownership rejection,
+retry history, and unchanged database bytes when refusing a newer schema. A synthetic
+SQLite audit-write failure verifies enrollment and pairing-consumption rollback.
 
 Before deploying any new service version, stop the service and retain a consistent,
 protected backup of the entire state directory and its private runtime settings.
@@ -77,7 +83,7 @@ Do not downgrade by deleting tables or clearing audit/command history. If a bina
 cannot read the migrated schema, keep that state intact and use the compatible
 binary until a reviewed forward fix is available. Restoring an old backup must
 reconcile subsequent work; it is not a silent rollback of human decisions. Automated
-off-host backup/restore and migration failure drills remain in #20 and #7.
+off-host backup/restore and production migration drills remain in #20 and #25.
 
 The settings loader performs no HIS I/O. It rejects relative/device-namespace paths,
 path traversal, equal HIS/backup share names, production placeholders/documentation

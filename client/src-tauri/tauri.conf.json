@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "公費抗病毒藥劑回報",
+  "version": "0.1.0",
+  "identifier": "tw.clinic.antiviral-reporter",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "公費抗病毒藥劑回報",
+        "width": 1080,
+        "height": 760,
+        "minWidth": 720,
+        "minHeight": 540
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-src 'none'"
+    }
+  },
+  "bundle": { "active": false }
+}

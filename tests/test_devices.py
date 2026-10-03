@@ -1,6 +1,8 @@
 import secrets
 import tempfile
 import unittest
+import time
+from unittest.mock import patch
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -99,3 +101,81 @@ class DeviceWorkflowTest(unittest.TestCase):
                 self.fail("Second service unexpectedly acquired the state directory")
         with self.assertRaisesRegex(RuntimeError, "already has an owner"):
             initialize_administrator(self.settings, "another", secrets.token_urlsafe(32))
+
+    def test_request_id_reuse_across_commands_returns_the_first_result(self):
+        request_id = str(uuid4())
+        headers = {"Authorization": "Bearer " + self.credential}
+        first = self.client.post("/api/v1/sessions", headers=headers, json={
+            "requestId": request_id, "expectedRevision": 0, "operator": "synthetic"})
+        headers["X-Session-Id"] = first.json()["sessionId"]
+        replay = self.client.post("/api/v1/pairings", headers=headers, json={
+            "requestId": request_id, "expectedRevision": 0, "capabilities": ["admin"]})
+        self.assertEqual(replay.status_code, 200, replay.text)
+        self.assertEqual(replay.json(), first.json())
+        self.assertEqual(len(self.client.get("/api/v1/audit", headers=headers).json()), 2)
+
+    def test_last_administrator_cannot_accidentally_lock_out_management(self):
+        admin = self.session(self.credential)
+        device_id = self.client.get("/api/v1/session", headers=admin).json()["deviceId"]
+        result = self.client.post(f"/api/v1/devices/{device_id}/revoke", headers=admin, json={
+            "requestId": str(uuid4()), "expectedRevision": 1, "reason": "synthetic drill"})
+        self.assertEqual(result.status_code, 409, result.text)
+        self.assertIn("administrator", result.text)
+        self.assertEqual(self.client.get("/api/v1/session", headers=admin).status_code, 200)
+
+    def test_expired_pairing_and_session_are_denied(self):
+        admin = self.session(self.credential)
+        pairing = self.client.post("/api/v1/pairings", headers=admin, json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["physician"]}).json()
+        with patch("service.app.time.time", return_value=time.time() + 601):
+            expired = self.client.post("/api/v1/devices/enroll", json={
+                "requestId": str(uuid4()), "expectedRevision": 0,
+                "pairingCode": pairing["pairingCode"], "credential": secrets.token_urlsafe(32),
+                "name": "Synthetic expired pairing"})
+        self.assertEqual(expired.status_code, 401)
+        with patch("service.app.time.time", return_value=time.time() + 8 * 3600 + 1):
+            self.assertEqual(self.client.get("/api/v1/session", headers=admin).status_code, 401)
+
+    def test_stale_revocation_preserves_first_reason_and_returns_differences(self):
+        admin = self.session(self.credential)
+        pairing = self.client.post("/api/v1/pairings", headers=admin, json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["physician"]}).json()
+        device = self.client.post("/api/v1/devices/enroll", json={
+            "requestId": str(uuid4()), "expectedRevision": 0,
+            "pairingCode": pairing["pairingCode"], "credential": secrets.token_urlsafe(32),
+            "name": "Synthetic conflict device"}).json()
+        route = f'/api/v1/devices/{device["deviceId"]}/revoke'
+        first = {"requestId": str(uuid4()), "expectedRevision": 1, "reason": "first synthetic reason"}
+        self.assertEqual(self.client.post(route, headers=admin, json=first).status_code, 200)
+        stale = self.client.post(route, headers=admin, json=first | {
+            "requestId": str(uuid4()), "reason": "stale synthetic reason"})
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(stale.json()["detail"], {"currentRevision": 2, "differences": {"revoked": True}})
+        events = self.client.get("/api/v1/audit", headers=admin).json()
+        revocations = [event for event in events if event["kind"] == "device_revoked"]
+        self.assertEqual(len(revocations), 1)
+        self.assertEqual(revocations[0]["changes"]["reason"], first["reason"])
+
+    def test_audit_write_failure_rolls_back_enrollment_and_preserves_retry(self):
+        admin = self.session(self.credential)
+        pairing = self.client.post("/api/v1/pairings", headers=admin, json={
+            "requestId": str(uuid4()), "expectedRevision": 0, "capabilities": ["physician"]}).json()
+        command = {"requestId": str(uuid4()), "expectedRevision": 0,
+                   "pairingCode": pairing["pairingCode"], "credential": secrets.token_urlsafe(32),
+                   "name": "Synthetic rollback device"}
+        # Inject a real SQLite write failure in isolated synthetic state. Observe
+        # rollback and retry through public APIs, not internal row assertions.
+        with self.client.app.state.store.transaction() as db:
+            db.execute("CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON audit_events "
+                       "WHEN NEW.kind='device_enrolled' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+        import sqlite3
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.client.post("/api/v1/devices/enroll", json=command)
+        self.assertEqual(len(self.client.get("/api/v1/devices", headers=admin).json()), 1)
+        with self.client.app.state.store.transaction() as db:
+            db.execute("DROP TRIGGER synthetic_audit_failure")
+        success = self.client.post("/api/v1/devices/enroll", json=command)
+        self.assertEqual(success.status_code, 200, success.text)
+        self.assertEqual(self.client.post("/api/v1/devices/enroll", json=command).json(), success.json())
+        events = self.client.get("/api/v1/audit", headers=admin).json()
+        self.assertEqual(sum(event["kind"] == "device_enrolled" for event in events), 1)

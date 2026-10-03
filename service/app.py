@@ -75,6 +75,11 @@ class AuditView(BaseModel):
     changes: dict
 
 
+# requestId identifies the original command, even when a caller accidentally
+# retries it on another mutation route. Document every possible replay shape.
+MutationResult = SessionView | PairingView | DeviceView
+
+
 def create_app(settings: Settings) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -131,7 +136,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "capabilities": json.loads(device["capabilities"]), "revision": device["revision"],
                 "revoked": bool(device["revoked"])}
 
-    @app.post("/api/v1/sessions", response_model=SessionView, operation_id="createSession")
+    @app.post("/api/v1/sessions", response_model=MutationResult, operation_id="createSession")
     def create_session(command: CreateSession, request: Request,
                        authorization: Annotated[str | None, Header()] = None):
         with request.app.state.store.transaction() as db:
@@ -173,7 +178,7 @@ def create_app(settings: Settings) -> FastAPI:
                      "changes": json.loads(row["changes"])}
                     for row in db.execute("SELECT * FROM audit_events ORDER BY sequence")]
 
-    @app.post("/api/v1/pairings", response_model=PairingView, operation_id="createPairing")
+    @app.post("/api/v1/pairings", response_model=MutationResult, operation_id="createPairing")
     def create_pairing(command: CreatePairing, request: Request,
                        authorization: Annotated[str | None, Header()] = None,
                        x_session_id: Annotated[str | None, Header()] = None):
@@ -225,7 +230,7 @@ def create_app(settings: Settings) -> FastAPI:
             result = device_view(db.execute("SELECT * FROM devices WHERE id=?", (device_id,)).fetchone())
             return save_result(db, actor, str(command.requestId), result)
 
-    @app.post("/api/v1/devices/{device_id}/revoke", response_model=DeviceView, operation_id="revokeDevice")
+    @app.post("/api/v1/devices/{device_id}/revoke", response_model=MutationResult, operation_id="revokeDevice")
     def revoke_device(device_id: UUID, command: RevokeDevice, request: Request,
                       authorization: Annotated[str | None, Header()] = None,
                       x_session_id: Annotated[str | None, Header()] = None):
@@ -240,6 +245,14 @@ def create_app(settings: Settings) -> FastAPI:
             if device["revision"] != command.expectedRevision:
                 raise HTTPException(409, {"currentRevision": device["revision"],
                                           "differences": {"revoked": bool(device["revoked"])}})
+            if not device["revoked"] and "admin" in json.loads(device["capabilities"]):
+                other_admin = db.execute(
+                    "SELECT 1 FROM devices d, json_each(d.capabilities) c "
+                    "WHERE d.revoked=0 AND d.id<>? AND c.value='admin' LIMIT 1",
+                    (str(device_id),),
+                ).fetchone()
+                if not other_admin:
+                    raise HTTPException(409, "Pair another administrator device before revoking the last administrator")
             db.execute("UPDATE devices SET revoked=1,revision=revision+1 WHERE id=?", (str(device_id),))
             db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
                        ("device_revoked", actor["id"], session["operator"], time.time(),
