@@ -81,6 +81,7 @@ targeted follow-up confirmed credential rotation and retry preservation.
 Standards: 3 resolved findings. Spec: 3 resolved findings. No remaining issue in
 these targeted fixes; this review does not establish completion of the whole MVP.
 
-Native successful pairing against a trusted deployment, real revocation/network
-drills, signed packaging, and M0 evidence remain open. #7 is not closed by this
-checkpoint. No HIS source or patient data was accessed.
+This checkpoint plus the later signed native connection/update rehearsal closes
+the repository-controlled #7 slice. Native pairing/revocation against the clinic
+deployment, real network drills and M0 evidence remain under #25; they are not
+inferred from the synthetic closure. No HIS source or patient data was accessed.

@@ -42,5 +42,6 @@ no-match/cleared exact search, two independent detail selections, raw snapshot,
 Tab/Enter focus, widths 720/1080/1440px, and 125% CSS page zoom. All passed against
 the running real HTTPS environment, including outage and recovery. This is browser
 automation evidence, not a claim about subjective comfort or native Windows DPI.
-The user need not repeat these checks. #8 remains open pending its final delivery
-evidence. Production Excel remains disabled.
+The user need not repeat these checks. The committed tests, real-HTTPS journey and
+completed review close the synthetic #8 slice. Live HIS identity behavior remains
+#23 evidence, and production Excel remains disabled.
