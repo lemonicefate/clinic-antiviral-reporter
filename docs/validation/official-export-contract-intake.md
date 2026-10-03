@@ -109,8 +109,10 @@ software records it as a contract. An unexplained response remains `OPEN`.
    scenarios before the run. After filling every observed result and evidence
    reference, repeat with `--require-complete`; this only validates the evidence
    package and never enables a product gate. Keep the manifest's top-level
-   `status` as `OPEN`; `COMPLETE` is only the validator's derived report and
-   does not mean that official export is authorized.
+    `status` as `OPEN`; `COMPLETE` is only the validator's derived report and
+    does not mean that official export is authorized. The validator also rejects
+    raw DBF/FPT/CDX files, reparse points, unknown source/secret fields, absolute
+    paths in observations, and path-bearing evidence references.
    For the prepared workstation handoff, run
    `python -m scripts.check_acceptance_environment` first; its
    `READY_FOR_MANUAL` result checks the private desktop/browser metadata, this

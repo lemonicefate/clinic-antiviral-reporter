@@ -62,6 +62,29 @@ class SmisContractValidatorTest(unittest.TestCase):
             result = validate(kit)
             self.assertTrue(any("template.file" in error for error in result.errors))
 
+    def test_rejects_raw_sources_paths_and_sensitive_manifest_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            kit = self._kit(Path(directory))
+            (kit / "raw.DBF").write_bytes(b"synthetic source is forbidden")
+            manifest_path = kit / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["sourcePath"] = r"\\synthetic-smis\data"
+            manifest["createdAt"] = r"2026-10-03T12:00:00+08:00 C:\Clinic\smis"
+            manifest["template"]["source_path"] = r"C:\Clinic\template.xlsx"
+            manifest["scenarios"][0].update(
+                status="PASS", observedResult="result", evidence=r"C:\private\evidence")
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = validate(kit)
+
+            self.assertTrue(any("raw HIS/SMIS source file" in error for error in result.errors))
+            self.assertTrue(any("source path" in error for error in result.errors))
+            self.assertTrue(any("createdAt" in error and "absolute path" in error
+                                for error in result.errors))
+            self.assertTrue(any("S01.evidence" in error and "path" in error
+                                for error in result.errors))
+            self.assertNotIn("S01", result.completed_scenarios)
+
     def test_bom_is_accepted_and_invalid_scenario_is_not_completed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             kit = self._kit(Path(directory))
@@ -106,6 +129,23 @@ class SmisContractValidatorTest(unittest.TestCase):
                 self.skipTest("This Windows account cannot create a test junction")
             try:
                 result = validate(linked)
+                self.assertTrue(any("links or reparse" in error for error in result.errors))
+            finally:
+                linked.rmdir()
+
+    def test_validator_rejects_a_nested_directory_junction(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            kit = self._kit(root)
+            target = root / "target"
+            target.mkdir()
+            linked = kit / "evidence-link"
+            junction = subprocess.run(["cmd", "/c", "mklink", "/J", str(linked), str(target)],
+                                      capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            if junction.returncode:
+                self.skipTest("This Windows account cannot create a test junction")
+            try:
+                result = validate(kit)
                 self.assertTrue(any("links or reparse" in error for error in result.errors))
             finally:
                 linked.rmdir()

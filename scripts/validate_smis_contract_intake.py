@@ -14,6 +14,14 @@ from scripts.prepare_smis_contract_intake import SCENARIOS, _sha256
 
 _DIGEST = re.compile(r"^[0-9A-Fa-f]{64}$")
 _STATUSES = {"OPEN", "PASS", "FAIL", "NOT_APPLICABLE"}
+_SOURCE_SUFFIXES = {".dbf", ".fpt", ".cdx"}
+_MANIFEST_KEYS = {"kitVersion", "syntheticOnly", "productionExportEnabled",
+                  "status", "createdAt", "template", "scenarios"}
+_TEMPLATE_KEYS = {"file", "sha256"}
+_SCENARIO_KEYS = {"id", "name", "instruction", "status", "observedResult", "evidence"}
+_SOURCE_KEYS = {"sourcepath", "sourcedirectory", "hissourcepath", "smbpath"}
+_SECRET_KEYS = {"credential", "credentials", "password", "token", "privatekey", "secret"}
+_ABSOLUTE_PATH = re.compile(r"(?:\\\\|(?<![A-Za-z0-9])[A-Za-z]:[\\/])")
 
 
 def _reject_reparse(path: Path) -> None:
@@ -54,6 +62,57 @@ def _load_manifest(kit: Path) -> dict[str, Any]:
     return value
 
 
+def _normalized_key(value: str) -> str:
+    return "".join(character for character in value.casefold() if character.isalnum())
+
+
+def _key_errors(value: dict[str, Any], allowed: set[str], prefix: str) -> list[str]:
+    errors: list[str] = []
+    for key in value:
+        if key in allowed:
+            continue
+        normalized = _normalized_key(key)
+        if normalized in _SOURCE_KEYS:
+            errors.append(f"{prefix}.{key} must not record an HIS/SMIS source path")
+        elif normalized in _SECRET_KEYS:
+            errors.append(f"{prefix}.{key} must not record credentials or secrets")
+        else:
+            errors.append(f"{prefix}.{key} is not a repository-controlled field")
+    return errors
+
+
+def _text(value: Any, field: str, maximum: int, *, allow_newlines: bool = True,
+          reject_absolute_path: bool = True) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+        raise ValueError(f"{field} must be a non-empty string of at most {maximum} characters")
+    if not allow_newlines and any(character in value for character in ("\r", "\n")):
+        raise ValueError(f"{field} must be a single-line string")
+    if reject_absolute_path and _ABSOLUTE_PATH.search(value):
+        raise ValueError(f"{field} must not contain an absolute path")
+    return value.strip()
+
+
+def _opaque_reference(value: Any, field: str, maximum: int) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+        raise ValueError(f"{field} must be a short non-empty opaque reference")
+    if any(character in value for character in ("/", "\\", "\r", "\n")) or ".." in value:
+        raise ValueError(f"{field} must not contain a path")
+    return value.strip()
+
+
+def _reject_source_files(kit: Path) -> list[str]:
+    errors: list[str] = []
+    for path in kit.rglob("*"):
+        _reject_reparse(path)
+        if path.is_file() and path.suffix.casefold() in _SOURCE_SUFFIXES:
+            errors.append(f"raw HIS/SMIS source file is not allowed in the kit: {path.name}")
+    return errors
+
+
 def _relative_file(kit: Path, value: Any, field: str) -> Path:
     if not isinstance(value, str) or not value or "\n" in value or "\r" in value:
         raise ValueError(f"{field} must be a non-empty single-line string")
@@ -87,6 +146,7 @@ def validate(kit_path: Path, *, repository: Path | None = None, require_complete
     try:
         kit = _kit_path(kit_path, repository_root)
         manifest = _load_manifest(kit)
+        errors.extend(_reject_source_files(kit))
     except (OSError, ValueError) as error:
         return IntakeValidation(kit_path, (str(error),), (), ())
 
@@ -98,11 +158,20 @@ def validate(kit_path: Path, *, repository: Path | None = None, require_complete
         errors.append("syntheticOnly must remain true")
     if manifest.get("productionExportEnabled") is not False:
         errors.append("productionExportEnabled must remain false")
+    try:
+        created_at = _text(manifest.get("createdAt"), "createdAt", 80,
+                           allow_newlines=False)
+        if created_at is None:
+            errors.append("createdAt must be a non-empty timestamp")
+    except ValueError as error:
+        errors.append(str(error))
+    errors.extend(_key_errors(manifest, _MANIFEST_KEYS, "manifest"))
 
     template = manifest.get("template")
     if not isinstance(template, dict):
         errors.append("template must be an object")
     else:
+        errors.extend(_key_errors(template, _TEMPLATE_KEYS, "template"))
         try:
             template_path = _relative_file(kit, template.get("file"), "template.file")
             if not template_path.is_file() or template_path.stat().st_size == 0:
@@ -135,19 +204,20 @@ def validate(kit_path: Path, *, repository: Path | None = None, require_complete
             errors.append(f"duplicate scenario id: {scenario_id}")
             continue
         seen.add(scenario_id)
+        errors.extend(_key_errors(scenario, _SCENARIO_KEYS, prefix))
         for key in ("name", "instruction"):
             if scenario.get(key) != expected_scenarios[scenario_id][key]:
                 errors.append(f"{prefix}.{key} must remain repository-controlled")
         status = scenario.get("status")
-        observed = scenario.get("observedResult")
-        evidence = scenario.get("evidence")
         if status not in _STATUSES:
             errors.append(f"{scenario_id}.status must be one of {sorted(_STATUSES)}")
             continue
-        if observed is not None and (not isinstance(observed, str) or not observed.strip() or len(observed) > 2000):
-            errors.append(f"{scenario_id}.observedResult must be a short non-empty result or null")
-        if evidence is not None and (not isinstance(evidence, str) or not evidence.strip() or len(evidence) > 500):
-            errors.append(f"{scenario_id}.evidence must be a short reference or null")
+        try:
+            observed = _text(scenario.get("observedResult"), f"{scenario_id}.observedResult", 2000)
+            evidence = _opaque_reference(scenario.get("evidence"), f"{scenario_id}.evidence", 500)
+        except ValueError as error:
+            errors.append(str(error))
+            continue
         if status == "OPEN":
             open_scenarios.append(scenario_id)
         elif observed is None or evidence is None:
