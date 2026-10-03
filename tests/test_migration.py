@@ -99,8 +99,8 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.fail("Future schema should not start")
             self.assertEqual(path.read_bytes(), original)
 
-    def test_version_three_through_six_history_survives_scanner_migration(self):
-        for version in (3, 4, 5, 6):
+    def test_version_three_through_seven_history_survives_mapping_migration(self):
+        for version in (3, 4, 5, 6, 7):
             with tempfile.TemporaryDirectory() as directory:
                 credential = secrets.token_urlsafe(32)
                 case_id = "11111111-1111-4111-8111-111111111111"
@@ -141,7 +141,7 @@ class MigrationAcceptanceTest(unittest.TestCase):
                                ('[{"lot":"SYN-OLD-LOT","quantity":10}]', 'synthetic previous decision'))
                     db.execute("PRAGMA user_version=5")
                     db.commit()
-                if version == 6:
+                if version >= 6:
                     db.executescript("""
                         ALTER TABLE report_cases ADD COLUMN reporting_snapshot INTEGER;
                         ALTER TABLE report_cases ADD COLUMN reviewed_snapshot INTEGER;
@@ -153,6 +153,17 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     db.execute("INSERT INTO source_snapshots VALUES (2,?,2,?)", (case_id, json.dumps(facts | {"CH012M1.USE_TAMT": "5"})))
                     db.execute("INSERT INTO source_quarantine VALUES (1,?,1,'{}','source_not_observed',2,3,0)", ("synthetic-v1:SYN-OLD-ORDER",))
                     db.commit()
+                if version == 7:
+                    db.executescript("""
+                        CREATE TABLE scan_state(id INTEGER PRIMARY KEY,revision INTEGER NOT NULL,current_job TEXT,last_success REAL);
+                        INSERT INTO scan_state VALUES (1,2,'synthetic-old-job',100);
+                        CREATE TABLE scan_runs(id TEXT PRIMARY KEY,status TEXT NOT NULL,date_from TEXT NOT NULL,
+                            date_to TEXT NOT NULL,device_id TEXT NOT NULL,operator TEXT NOT NULL,requested_at REAL NOT NULL,
+                            started_at REAL,finished_at REAL,diagnostic TEXT,counts TEXT NOT NULL DEFAULT '{}');
+                        INSERT INTO scan_runs VALUES ('synthetic-old-job','succeeded','2026-10-01','2026-10-02',
+                            'v3-admin','SYN-DR-A',98,99,100,NULL,'{"created":1}');
+                        PRAGMA user_version=7;
+                    """)
                 db.close()
                 with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
                     detail = client.get(f"/api/v1/cases/{case_id}", headers={
@@ -164,8 +175,18 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.assertEqual(detail["lots"], [{"lot": "SYN-OLD-LOT", "quantity": 10}] if version >= 5 else [])
                     self.assertEqual(detail["excluded"], version >= 5)
                     self.assertEqual(detail["reportingSourceSnapshot"], 1)
-                    self.assertEqual(detail["latestSourceSnapshot"], 2 if version == 6 else 1)
-                    if version == 6:
+                    self.assertEqual(detail["latestSourceSnapshot"], 2 if version >= 6 else 1)
+                    mappings = client.get("/api/v1/mappings", headers={
+                        "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
+                    self.assertIsNone(mappings["goLiveAt"])
+                    self.assertEqual(mappings["versions"], [])
+                    if version == 7:
+                        scan = client.get("/api/v1/scans/status", headers={
+                            "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
+                        self.assertEqual(scan["jobId"], "synthetic-old-job")
+                        self.assertEqual(scan["counts"], {"created": 1})
+                        self.assertEqual(scan["lastSuccessAt"], 100)
+                    if version >= 6:
                         self.assertTrue(detail["sourceReviewRequired"])
                         self.assertTrue(detail["sourceUnresolved"])
                         quarantine = client.get("/api/v1/source-quarantine", headers={

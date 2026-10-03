@@ -344,6 +344,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Mappings */
+        get: operations["getMappings"];
+        put?: never;
+        /** Save Mapping */
+        post: operations["saveMapping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -692,6 +710,112 @@ export interface components {
             /** Quantity */
             quantity: number;
         };
+        /** MappingProfile */
+        MappingProfile: {
+            /**
+             * Internalcode
+             * @default ERA
+             * @constant
+             */
+            internalCode: "ERA";
+            /**
+             * Nhicode
+             * @default A059653100
+             * @constant
+             */
+            nhiCode: "A059653100";
+            /**
+             * Materialvalue
+             * @default DDMTR2018090002:易剋冒膠囊(顆)
+             * @constant
+             */
+            materialValue: "DDMTR2018090002:易剋冒膠囊(顆)";
+            /**
+             * Quantityrule
+             * @default integer_capsules
+             * @constant
+             */
+            quantityRule: "integer_capsules";
+        };
+        /** MappingVersion */
+        MappingVersion: {
+            /**
+             * Internalcode
+             * @default ERA
+             * @constant
+             */
+            internalCode: "ERA";
+            /**
+             * Nhicode
+             * @default A059653100
+             * @constant
+             */
+            nhiCode: "A059653100";
+            /**
+             * Materialvalue
+             * @default DDMTR2018090002:易剋冒膠囊(顆)
+             * @constant
+             */
+            materialValue: "DDMTR2018090002:易剋冒膠囊(顆)";
+            /**
+             * Quantityrule
+             * @default integer_capsules
+             * @constant
+             */
+            quantityRule: "integer_capsules";
+            /** Version */
+            version: number;
+            /** Effectivefrom */
+            effectiveFrom: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Reason */
+            reason: string;
+            /** Createdat */
+            createdAt: number;
+            /** Deviceid */
+            deviceId: string;
+            /** Operator */
+            operator: string;
+        };
+        /** MappingView */
+        MappingView: {
+            /** Revision */
+            revision: number;
+            /** Goliveat */
+            goLiveAt: string | null;
+            /** Initialdatefrom */
+            initialDateFrom: string | null;
+            /**
+             * @default {
+             *       "internalCode": "ERA",
+             *       "nhiCode": "A059653100",
+             *       "materialValue": "DDMTR2018090002:易剋冒膠囊(顆)",
+             *       "quantityRule": "integer_capsules"
+             *     }
+             */
+            confirmedProfile: components["schemas"]["MappingProfile"];
+            /** Versions */
+            versions: components["schemas"]["MappingVersion"][];
+            /**
+             * Opengates
+             * @default [
+             *       "live_his_contract",
+             *       "official_export_contract",
+             *       "synthetic_smis_import",
+             *       "operator_authorization",
+             *       "deployment_and_restore",
+             *       "outage_recovery"
+             *     ]
+             */
+            openGates: string[];
+            /**
+             * Productionexportenabled
+             * @default false
+             * @constant
+             */
+            productionExportEnabled: false;
+        };
         /** PairingView */
         PairingView: {
             /** Pairingcode */
@@ -823,6 +947,54 @@ export interface components {
              */
             changeReason: string;
         };
+        /** SaveMapping */
+        SaveMapping: {
+            /**
+             * Internalcode
+             * @default ERA
+             * @constant
+             */
+            internalCode: "ERA";
+            /**
+             * Nhicode
+             * @default A059653100
+             * @constant
+             */
+            nhiCode: "A059653100";
+            /**
+             * Materialvalue
+             * @default DDMTR2018090002:易剋冒膠囊(顆)
+             * @constant
+             */
+            materialValue: "DDMTR2018090002:易剋冒膠囊(顆)";
+            /**
+             * Quantityrule
+             * @default integer_capsules
+             * @constant
+             */
+            quantityRule: "integer_capsules";
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /**
+             * Effectivefrom
+             * Format: date-time
+             */
+            effectiveFrom: string;
+            /**
+             * Initialdatefrom
+             * Format: date
+             */
+            initialDateFrom: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Reason */
+            reason: string;
+        };
         /** SaveReason */
         SaveReason: {
             /**
@@ -867,7 +1039,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "disabled" | "idle" | "queued" | "running" | "succeeded" | "partial" | "failed" | "interrupted";
+            status: "disabled" | "awaiting_configuration" | "idle" | "queued" | "running" | "succeeded" | "partial" | "failed" | "interrupted";
             /** Jobid */
             jobId?: string | null;
             /** Datefrom */
@@ -934,6 +1106,8 @@ export interface components {
         };
         /** SnapshotView */
         SnapshotView: {
+            /** Mappingversion */
+            mappingVersion?: number | null;
             /** Sequence */
             sequence: number;
             /** Capturedat */
@@ -1002,7 +1176,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1134,7 +1308,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1205,7 +1379,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1241,7 +1415,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1350,7 +1524,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1422,7 +1596,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1494,7 +1668,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1530,7 +1704,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1600,7 +1774,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */
@@ -1668,7 +1842,75 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getMappings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saveMapping: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveMapping"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"] | components["schemas"]["MappingView"];
                 };
             };
             /** @description Validation Error */

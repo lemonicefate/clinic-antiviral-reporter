@@ -70,7 +70,7 @@ def ingest_synthetic(db, orders, scenario, device, session):
     return counts
 
 
-def ingest_observation(db, key, facts, device, session):
+def ingest_observation(db, key, facts, device, session, mapping_version=None):
     row = db.execute("SELECT * FROM report_cases WHERE source_key=?", (key,)).fetchone()
     serialized = json.dumps(facts, ensure_ascii=False, sort_keys=True)
     if facts["RG011M1.TREAT"] == "N":
@@ -89,14 +89,14 @@ def ingest_observation(db, key, facts, device, session):
                        "revisionAfter": row["revision"] + 1 if row else None, "source": "synthetic"})))
     old = db.execute("SELECT * FROM source_snapshots WHERE case_id=? ORDER BY sequence DESC LIMIT 1",
                      (row["id"],)).fetchone() if row else None
-    if old is not None and json.loads(old["facts"]) == facts:
+    if old is not None and json.loads(old["facts"]) == facts and old["mapping_version"] == mapping_version:
         return "unchanged"
     case_id = row["id"] if row else str(uuid4())
     if row is None:
         db.execute("INSERT INTO report_cases(id,source_key,revision,reported_quantity) VALUES (?,?,1,?)",
                    (case_id, key, int(facts["CH012M1.USE_TAMT"])))
-    snapshot = db.execute("INSERT INTO source_snapshots(case_id,captured_at,facts) VALUES (?,?,?)",
-                          (case_id, time.time(), serialized)).lastrowid
+    snapshot = db.execute("INSERT INTO source_snapshots(case_id,captured_at,facts,mapping_version) VALUES (?,?,?,?)",
+                          (case_id, time.time(), serialized, mapping_version)).lastrowid
     if row is None:
         db.execute("UPDATE report_cases SET reporting_snapshot=?,reviewed_snapshot=? WHERE id=?",
                    (snapshot, snapshot if facts["RG011M1.TREAT"] == "Y" else None, case_id))
@@ -107,6 +107,7 @@ def ingest_observation(db, key, facts, device, session):
                (kind, device["id"], session["operator"], time.time(), json.dumps({
                    "caseId": case_id, "sourceKey": key, "synthetic": True,
                    "sourceSnapshot": snapshot, "previousSnapshot": old["sequence"] if old else None,
+                   "mappingVersion": mapping_version,
                    "source": "synthetic", "before": json.loads(old["facts"]) if old else None,
                    "after": facts}, ensure_ascii=False)))
     return "changed" if row else "created"

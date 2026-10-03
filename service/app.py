@@ -18,6 +18,7 @@ from service.storage import Store, digest, saved_result, save_result
 from service.cases import CaseView, RefreshView, register_case_routes
 from service.reporting import BulkLotView
 from service.scanner import Scanner, ScanView
+from service.mappings import MappingView, register_mapping_routes
 
 
 class Command(BaseModel):
@@ -80,7 +81,7 @@ class AuditView(BaseModel):
 
 # requestId identifies the original command, even when a caller accidentally
 # retries it on another mutation route. Document every possible replay shape.
-MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView | BulkLotView | ScanView
+MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView | BulkLotView | ScanView | MappingView
 
 
 def create_app(settings: Settings) -> FastAPI:
@@ -268,4 +269,5 @@ def create_app(settings: Settings) -> FastAPI:
             return save_result(db, actor["id"], str(command.requestId), result)
 
     register_case_routes(app, settings, active_session, MutationResult)
+    register_mapping_routes(app, active_session, MutationResult)
     return app

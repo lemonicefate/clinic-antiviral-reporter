@@ -64,6 +64,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Createsession"
@@ -353,6 +356,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Createpairing"
@@ -496,6 +502,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Revokedevice"
@@ -591,6 +600,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Refreshsyntheticorders"
@@ -925,6 +937,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Savereason"
@@ -1102,6 +1117,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Savedispensing"
@@ -1283,6 +1301,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Setcaseexclusion"
@@ -1378,6 +1399,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Applybulklot"
@@ -1549,6 +1573,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Reviewsource"
@@ -1706,9 +1733,170 @@
                     },
                     {
                       "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
                     }
                   ],
                   "title": "Response Requestscan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mappings": {
+      "get": {
+        "summary": "Get Mappings",
+        "operationId": "getMappings",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Save Mapping",
+        "operationId": "saveMapping",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMapping"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
+                    }
+                  ],
+                  "title": "Response Savemapping"
                 }
               }
             }
@@ -2450,6 +2638,179 @@
         ],
         "title": "LotAllocation"
       },
+      "MappingProfile": {
+        "properties": {
+          "internalCode": {
+            "type": "string",
+            "const": "ERA",
+            "title": "Internalcode",
+            "default": "ERA"
+          },
+          "nhiCode": {
+            "type": "string",
+            "const": "A059653100",
+            "title": "Nhicode",
+            "default": "A059653100"
+          },
+          "materialValue": {
+            "type": "string",
+            "const": "DDMTR2018090002:易剋冒膠囊(顆)",
+            "title": "Materialvalue",
+            "default": "DDMTR2018090002:易剋冒膠囊(顆)"
+          },
+          "quantityRule": {
+            "type": "string",
+            "const": "integer_capsules",
+            "title": "Quantityrule",
+            "default": "integer_capsules"
+          }
+        },
+        "type": "object",
+        "title": "MappingProfile"
+      },
+      "MappingVersion": {
+        "properties": {
+          "internalCode": {
+            "type": "string",
+            "const": "ERA",
+            "title": "Internalcode",
+            "default": "ERA"
+          },
+          "nhiCode": {
+            "type": "string",
+            "const": "A059653100",
+            "title": "Nhicode",
+            "default": "A059653100"
+          },
+          "materialValue": {
+            "type": "string",
+            "const": "DDMTR2018090002:易剋冒膠囊(顆)",
+            "title": "Materialvalue",
+            "default": "DDMTR2018090002:易剋冒膠囊(顆)"
+          },
+          "quantityRule": {
+            "type": "string",
+            "const": "integer_capsules",
+            "title": "Quantityrule",
+            "default": "integer_capsules"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "title": "Effectivefrom"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "createdAt": {
+            "type": "number",
+            "title": "Createdat"
+          },
+          "deviceId": {
+            "type": "string",
+            "title": "Deviceid"
+          },
+          "operator": {
+            "type": "string",
+            "title": "Operator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "effectiveFrom",
+          "enabled",
+          "reason",
+          "createdAt",
+          "deviceId",
+          "operator"
+        ],
+        "title": "MappingVersion"
+      },
+      "MappingView": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "goLiveAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goliveat"
+          },
+          "initialDateFrom": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initialdatefrom"
+          },
+          "confirmedProfile": {
+            "$ref": "#/components/schemas/MappingProfile",
+            "default": {
+              "internalCode": "ERA",
+              "nhiCode": "A059653100",
+              "materialValue": "DDMTR2018090002:易剋冒膠囊(顆)",
+              "quantityRule": "integer_capsules"
+            }
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/MappingVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "openGates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Opengates",
+            "default": [
+              "live_his_contract",
+              "official_export_contract",
+              "synthetic_smis_import",
+              "operator_authorization",
+              "deployment_and_restore",
+              "outage_recovery"
+            ]
+          },
+          "productionExportEnabled": {
+            "type": "boolean",
+            "const": false,
+            "title": "Productionexportenabled",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision",
+          "goLiveAt",
+          "initialDateFrom",
+          "versions"
+        ],
+        "title": "MappingView"
+      },
       "PairingView": {
         "properties": {
           "pairingCode": {
@@ -2748,6 +3109,76 @@
         ],
         "title": "SaveDispensing"
       },
+      "SaveMapping": {
+        "properties": {
+          "internalCode": {
+            "type": "string",
+            "const": "ERA",
+            "title": "Internalcode",
+            "default": "ERA"
+          },
+          "nhiCode": {
+            "type": "string",
+            "const": "A059653100",
+            "title": "Nhicode",
+            "default": "A059653100"
+          },
+          "materialValue": {
+            "type": "string",
+            "const": "DDMTR2018090002:易剋冒膠囊(顆)",
+            "title": "Materialvalue",
+            "default": "DDMTR2018090002:易剋冒膠囊(顆)"
+          },
+          "quantityRule": {
+            "type": "string",
+            "const": "integer_capsules",
+            "title": "Quantityrule",
+            "default": "integer_capsules"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Effectivefrom"
+          },
+          "initialDateFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Initialdatefrom"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "effectiveFrom",
+          "initialDateFrom",
+          "enabled",
+          "reason"
+        ],
+        "title": "SaveMapping"
+      },
       "SaveReason": {
         "properties": {
           "requestId": {
@@ -2828,6 +3259,7 @@
             "type": "string",
             "enum": [
               "disabled",
+              "awaiting_configuration",
               "idle",
               "queued",
               "running",
@@ -3027,6 +3459,17 @@
       },
       "SnapshotView": {
         "properties": {
+          "mappingVersion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mappingversion"
+          },
           "sequence": {
             "type": "integer",
             "title": "Sequence"

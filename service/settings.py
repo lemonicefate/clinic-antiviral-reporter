@@ -81,11 +81,13 @@ class Settings:
         scan_from = None
         if dbf not in ("true", "false") or (dbf == "true" and (mode != "development" or synthetic != "true")):
             raise SettingsError("Synthetic DBF scans require explicit development synthetic mode")
-        if dbf == "true":
+        # Legacy setting remains parseable for existing synthetic harnesses;
+        # authoritative scan bounds are now configured by the administrator API.
+        if dbf == "true" and environment.get("CLINIC_REPORTER_HIS_SCAN_FROM_DATE"):
             try:
                 scan_from = date.fromisoformat(environment.get("CLINIC_REPORTER_HIS_SCAN_FROM_DATE", ""))
             except ValueError:
-                raise SettingsError("Synthetic DBF scans require an explicit initial date") from None
+                raise SettingsError("Legacy initial date must be an ISO date when supplied") from None
         host = environment.get("CLINIC_REPORTER_BIND_HOST", "127.0.0.1")
         try:
             address = ipaddress.ip_address(host)

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { clinicApi, OperationError, requireData } from "./api";
 import type { Capability, ConnectionSettings, Device, Session } from "./api";
 import { CaseQueue } from "./CaseQueue";
+import { MappingManager } from "./MappingManager";
 
 const capabilityNames: Record<Capability, string> = {
   admin: "管理者",
@@ -160,7 +161,13 @@ export function App() {
           <>
             <div className="page-heading">
               <div>
-                <h1>{page === "cases" ? "案件工作區" : "裝置與連線"}</h1>
+                <h1>
+                  {page === "cases"
+                    ? "案件工作區"
+                    : page === "mappings"
+                      ? "映射與啟用設定"
+                      : "裝置與連線"}
+                </h1>
                 <p>
                   操作身分：{session.operator} ·{" "}
                   {session.capabilities
@@ -198,10 +205,20 @@ export function App() {
                 >
                   案件工作清單
                 </button>
+                <button
+                  className="secondary"
+                  onClick={() => setPage("mappings")}
+                  aria-pressed={page === "mappings"}
+                >
+                  映射與啟用設定
+                </button>
               </nav>
             )}
             {page === "cases" ? (
               <CaseQueue key={session.sessionId} api={api} session={session} />
+            ) : page === "mappings" &&
+              session.capabilities.includes("admin") ? (
+              <MappingManager key={session.sessionId} api={api} />
             ) : session.capabilities.includes("admin") ? (
               <DeviceManager
                 key={session.sessionId}

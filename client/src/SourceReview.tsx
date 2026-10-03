@@ -8,6 +8,7 @@ import type { Conflict } from "./ReportingConflict";
 type Detail = components["schemas"]["CaseDetail"];
 type Api = ReturnType<typeof clinicApi>;
 const labels: Record<string, string> = {
+  mappingVersion: "映射版本",
   "PD011M1.NUM": "病歷號",
   "PD011M1.NAME": "姓名",
   "PD011M1.BIRTH": "出生日期",
@@ -18,6 +19,7 @@ const labels: Record<string, string> = {
   "CH012M1.SYS_2015": "來源醫令",
 };
 const quarantineLabels: Record<string, string> = {
+  mapping_not_effective: "來源日期沒有啟用的映射版本，請管理者核對",
   registration_not_seen_with_order: "尚未看診但存在醫令",
   source_not_observed: "原來源未再觀測到",
   orphan_join: "缺少父資料，等待重試",

@@ -90,6 +90,7 @@ class CaseView(BaseModel):
 
 
 class SnapshotView(BaseModel):
+    mappingVersion: int | None = None
     sequence: int
     capturedAt: float
     raw: dict[str, str]
@@ -131,7 +132,8 @@ def synthetic_orders(anchor: date) -> list[dict[str, str]]:
 
 def _case_rows(db):
     return [(row, json.loads(row["facts"])) for row in db.execute(
-        "SELECT c.*,s.facts,latest.sequence AS latest_sequence,latest.facts AS latest_facts, "
+        "SELECT c.*,s.facts,s.mapping_version,latest.mapping_version AS latest_mapping_version,"
+        "latest.sequence AS latest_sequence,latest.facts AS latest_facts, "
         "EXISTS(SELECT 1 FROM source_quarantine q WHERE q.source_key=c.source_key AND q.resolved=0) AS unresolved "
         "FROM report_cases c JOIN source_snapshots s ON s.sequence=c.reporting_snapshot "
         "JOIN source_snapshots latest ON latest.sequence="
@@ -147,6 +149,12 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
                     row["reported_quantity"] <= int(facts["CH012M1.USE_TAMT"]) and
                     sum(lot["quantity"] for lot in lots) == row["reported_quantity"])
     excluded = bool(row["excluded"])
+    differences = {key: {"before": facts.get(key), "after": latest.get(key)}
+                   for key in sorted(facts.keys() | latest.keys()) if facts.get(key) != latest.get(key)}
+    if row["mapping_version"] != row["latest_mapping_version"]:
+        differences["mappingVersion"] = {
+            "before": str(row["mapping_version"]) if row["mapping_version"] is not None else None,
+            "after": str(row["latest_mapping_version"]) if row["latest_mapping_version"] is not None else None}
     return {
         "caseId": row["id"], "revision": row["revision"],
         "chartNumber": facts["PD011M1.NUM"], "patientName": facts["PD011M1.NAME"],
@@ -161,8 +169,7 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
         "sourceReviewRequired": pending, "reportingSourceSnapshot": row["reporting_snapshot"],
         "sourceUnresolved": bool(row["unresolved"]),
         "latestSourceSnapshot": row["latest_sequence"], "sourceTreatment": latest.get("RG011M1.TREAT", ""),
-        "sourceDifferences": {key: {"before": facts.get(key), "after": latest.get(key)}
-                              for key in sorted(facts.keys() | latest.keys()) if facts.get(key) != latest.get(key)},
+        "sourceDifferences": differences,
         "internallyComplete": complete and not excluded, "exportEligible": False,
         "status": "excluded" if excluded else "internally_complete" if complete else
                   "awaiting_reconciliation" if row["reason"] else "awaiting_reason",
@@ -299,6 +306,7 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                 if row["id"] == str(case_id):
                     return _view(row, facts, _duplicates(rows)) | {"snapshots": [
                         {"sequence": snapshot["sequence"], "capturedAt": snapshot["captured_at"],
+                         "mappingVersion": snapshot["mapping_version"],
                          "raw": json.loads(snapshot["facts"])} for snapshot in db.execute(
                              "SELECT * FROM source_snapshots WHERE case_id=? ORDER BY sequence", (str(case_id),))]}
             raise HTTPException(404, "Case not found")

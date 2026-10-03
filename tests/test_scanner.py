@@ -8,6 +8,7 @@ from pathlib import Path
 import secrets
 import tempfile
 import time
+from threading import Event
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
@@ -21,6 +22,101 @@ from service.settings import Settings
 
 
 class ScannerTest(unittest.TestCase):
+    def test_initial_range_excludes_older_sources_and_rejects_earlier_manual_scan(self):
+        yesterday = date.today() - timedelta(days=1)
+        with self.environment(fixture_date=yesterday) as (client, headers, state, root):
+            status = self.wait_scan(client, headers)
+            self.assertEqual(status["status"], "succeeded")
+            self.assertEqual(client.get("/api/v1/cases", headers=headers).json()["total"], 0)
+            response = client.post("/api/v1/scans", headers=headers, json={"requestId": str(uuid4()),
+                "expectedRevision": status["revision"], "dateFrom": yesterday.isoformat(), "dateTo": date.today().isoformat()})
+            self.assertEqual(response.status_code, 422)
+            prepare(state, date.today())
+            self.assertEqual(self.rescan(client, headers)["status"], "succeeded")
+            self.assertEqual(client.get("/api/v1/cases", headers=headers).json()["total"], 1)
+
+    def test_mapping_change_during_file_read_applies_only_to_later_scan(self):
+        initial = date.today() - timedelta(days=1)
+        with self.environment(configure=False) as (client, headers, state, root):
+            entered, release = Event(), Event()
+            original_open = io.open
+            def delayed_open(file, mode="r", *args, **kwargs):
+                if isinstance(file, (str, Path)) and Path(file).suffix == ".DBF" and Path(file).is_relative_to(root) and not entered.is_set():
+                    entered.set()
+                    if not release.wait(5):
+                        raise OSError("Synthetic boundary wait timed out")
+                return original_open(file, mode, *args, **kwargs)
+            with patch("io.open", delayed_open):
+                try:
+                    self.configure_mapping(client, headers, initial)
+                    self.assertTrue(entered.wait(2))
+                    changed = client.post("/api/v1/mappings", headers=headers, json={
+                        "requestId": str(uuid4()), "expectedRevision": 1,
+                        "effectiveFrom": date.today().isoformat() + "T00:00:00+08:00",
+                        "initialDateFrom": initial.isoformat(), "enabled": False,
+                        "reason": "Synthetic mapping changed during source read"})
+                    self.assertEqual(changed.status_code, 200, changed.text)
+                finally:
+                    release.set()
+                self.assertEqual(self.wait_scan(client, headers)["status"], "succeeded")
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            detail = client.get(f'/api/v1/cases/{case["caseId"]}', headers=headers).json()
+            self.assertEqual(detail["snapshots"][0]["mappingVersion"], 1)
+            self.assertEqual(self.rescan(client, headers)["status"], "partial")
+            self.assertTrue(client.get(f'/api/v1/cases/{case["caseId"]}', headers=headers).json()["sourceUnresolved"])
+
+    def configure_mapping(self, client, headers, initial_date):
+        response = client.post("/api/v1/mappings", headers=headers, json={
+            "requestId": str(uuid4()), "expectedRevision": 0,
+            "effectiveFrom": initial_date.isoformat() + "T00:00:00+08:00",
+            "initialDateFrom": initial_date.isoformat(), "enabled": True,
+            "reason": "Explicit synthetic scan activation"})
+        self.assertEqual(response.status_code, 200, response.text)
+
+    def test_scanner_waits_for_explicit_mapping_and_preserves_version_reference(self):
+        with self.environment(configure=False) as (client, headers, state, root):
+            time.sleep(.2)
+            status = client.get("/api/v1/scans/status", headers=headers).json()
+            self.assertEqual(status["status"], "awaiting_configuration")
+            self.assertEqual(client.get("/api/v1/cases", headers=headers).json()["total"], 0)
+            self.configure_mapping(client, headers, date.today())
+            self.assertEqual(self.wait_scan(client, headers)["status"], "succeeded")
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            detail = client.get(f'/api/v1/cases/{case["caseId"]}', headers=headers).json()
+            self.assertEqual(detail["snapshots"][0]["mappingVersion"], 1)
+            self.assertEqual(detail["snapshots"][0]["raw"]["CH011M1.SDATE"], date.today().isoformat())
+
+    def test_effective_versions_isolate_disabled_sources_and_keep_old_snapshots(self):
+        initial = date.today() - timedelta(days=2)
+        with self.environment(initial_date=initial, fixture_date=initial) as (client, headers, state, root):
+            self.wait_scan(client, headers)
+            case = client.get("/api/v1/cases", headers=headers).json()["items"][0]
+            path = f'/api/v1/cases/{case["caseId"]}'
+            original = client.get(path, headers=headers).json()
+            for revision, effective, enabled in [(1, date.today() - timedelta(days=1), False), (2, date.today(), True)]:
+                response = client.post("/api/v1/mappings", headers=headers, json={
+                    "requestId": str(uuid4()), "expectedRevision": revision,
+                    "effectiveFrom": effective.isoformat() + "T00:00:00+08:00",
+                    "initialDateFrom": initial.isoformat(), "enabled": enabled,
+                    "reason": "synthetic version transition"})
+                self.assertEqual(response.status_code, 200, response.text)
+            prepare(state, date.today() - timedelta(days=1), "quantity")
+            status = client.get("/api/v1/scans/status", headers=headers).json()
+            client.post("/api/v1/scans", headers=headers, json={"requestId": str(uuid4()),
+                "expectedRevision": status["revision"], "dateFrom": initial.isoformat(), "dateTo": date.today().isoformat()})
+            self.assertEqual(self.wait_scan(client, headers)["status"], "partial")
+            isolated = client.get(path, headers=headers).json()
+            self.assertTrue(isolated["sourceUnresolved"])
+            self.assertEqual(isolated["snapshots"], original["snapshots"])
+            prepare(state, date.today(), "quantity")
+            self.assertEqual(self.rescan(client, headers)["status"], "succeeded")
+            recovered = client.get(path, headers=headers).json()
+            self.assertEqual([s["mappingVersion"] for s in recovered["snapshots"]], [1, 3])
+            self.assertEqual(recovered["snapshots"][0], original["snapshots"][0])
+            self.assertEqual(recovered["reportedQuantity"], 10)
+            self.assertEqual(recovered["sourceDifferences"]["mappingVersion"], {"before": "1", "after": "3"})
+            self.assertTrue(recovered["sourceReviewRequired"])
+
     def test_invalid_update_moving_into_manual_date_range_is_quarantined(self):
         yesterday = date.today() - timedelta(days=1)
         with self.environment(initial_date=yesterday, fixture_date=yesterday) as (client, headers, state, root):
@@ -134,7 +230,7 @@ class ScannerTest(unittest.TestCase):
             self.assertEqual(stale.json()["detail"]["currentRevision"], latest["revision"])
 
     @contextmanager
-    def environment(self, scenario="valid", interval=60, initial_date=None, fixture_date=None):
+    def environment(self, scenario="valid", interval=60, initial_date=None, fixture_date=None, configure=True):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             root = prepare(state, fixture_date or date.today(), scenario)
@@ -142,14 +238,15 @@ class ScannerTest(unittest.TestCase):
                 "CLINIC_REPORTER_HIS_SOURCE_PATH": r"\\synthetic-his\data",
                 "CLINIC_REPORTER_BACKUP_ROOT": r"\\synthetic-his\backup",
                 "CLINIC_REPORTER_SYNTHETIC_ENABLED": "true", "CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED": "true",
-                "CLINIC_REPORTER_HIS_SCAN_INTERVAL_SECONDS": str(interval),
-                "CLINIC_REPORTER_HIS_SCAN_FROM_DATE": (initial_date or date.today()).isoformat()})
+                "CLINIC_REPORTER_HIS_SCAN_INTERVAL_SECONDS": str(interval)})
             key = secrets.token_urlsafe(32)
             initialize_administrator(settings, "Synthetic scanner admin", key)
             with TestClient(create_app(settings), base_url="https://testserver") as client:
                 session = client.post("/api/v1/sessions", headers={"Authorization": "Bearer " + key}, json={
                     "requestId": str(uuid4()), "expectedRevision": 0, "operator": "SYN-DR-A"}).json()
                 headers = {"Authorization": "Bearer " + key, "X-Session-Id": session["sessionId"]}
+                if configure:
+                    self.configure_mapping(client, headers, initial_date or date.today())
                 yield client, headers, state, root
 
     def rescan(self, client, headers):
@@ -239,6 +336,13 @@ class ScannerTest(unittest.TestCase):
             key = secrets.token_urlsafe(32)
             initialize_administrator(settings, "Synthetic scanner admin", key)
             opened = []
+            with TestClient(create_app(settings), base_url="https://testserver") as setup_client:
+                setup_headers = {"Authorization": "Bearer " + key}
+                session = setup_client.post("/api/v1/sessions", headers=setup_headers, json={
+                    "requestId": str(uuid4()), "expectedRevision": 0, "operator": "SYN-ADMIN"}).json()
+                setup_headers["X-Session-Id"] = session["sessionId"]
+                self.configure_mapping(setup_client, setup_headers, date.today())
+                self.wait_scan(setup_client, setup_headers)
             def spy(original):
                 def checked(file, mode="r", *args, **kwargs):
                     if isinstance(file, (str, Path)) and Path(file).is_relative_to(root):
@@ -248,7 +352,7 @@ class ScannerTest(unittest.TestCase):
                 return checked
             with patch("builtins.open", spy(builtins.open)), patch("io.open", spy(io.open)), \
                     TestClient(create_app(settings), base_url="https://testserver") as client:
-                # The scanner starts without any device session or manual command.
+                # Restarted scanner runs from persisted configuration without an active client.
                 time.sleep(.3)
                 session = client.post("/api/v1/sessions", headers={"Authorization": "Bearer " + key}, json={
                     "requestId": str(uuid4()), "expectedRevision": 0, "operator": "SYN-DR-A"}).json()

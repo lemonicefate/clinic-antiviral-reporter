@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 7:
+            if version > 8:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -131,6 +131,22 @@ class Store:
                         diagnostic TEXT, counts TEXT NOT NULL DEFAULT '{}'
                     );
                     PRAGMA user_version=7;
+                    COMMIT;
+                """)
+            if version < 8:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE mapping_versions (
+                        sequence INTEGER PRIMARY KEY, effective_from TEXT NOT NULL UNIQUE,
+                        initial_date_from TEXT NOT NULL, internal_code TEXT NOT NULL,
+                        nhi_code TEXT NOT NULL, material_value TEXT NOT NULL,
+                        quantity_rule TEXT NOT NULL, enabled INTEGER NOT NULL,
+                        reason TEXT NOT NULL, device_id TEXT NOT NULL,
+                        operator TEXT NOT NULL, created_at REAL NOT NULL
+                    );
+                    ALTER TABLE source_snapshots ADD COLUMN mapping_version INTEGER REFERENCES mapping_versions(sequence);
+                    ALTER TABLE scan_runs ADD COLUMN mapping_revision INTEGER NOT NULL DEFAULT 0;
+                    PRAGMA user_version=8;
                     COMMIT;
                 """)
         except Exception:

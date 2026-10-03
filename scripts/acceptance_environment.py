@@ -119,6 +119,13 @@ def stop():
 start()
 admin_session = json.loads(call('/api/v1/sessions', 'POST', {
     'requestId': str(uuid4()), 'expectedRevision': 0, 'operator': '合成環境準備'}, identities['admin']['active'])['body'])
+if settings.synthetic_dbf_enabled:
+    assert call('/api/v1/mappings', 'POST', {
+        'requestId': str(uuid4()), 'expectedRevision': 0,
+        'effectiveFrom': clinic_today().isoformat() + 'T00:00:00+08:00',
+        'initialDateFrom': clinic_today().isoformat(), 'enabled': True,
+        'reason': 'Explicit temporary synthetic DBF acceptance setup'},
+        identities['admin']['active'], admin_session['sessionId'])['status'] == 200
 grant = json.loads(call('/api/v1/pairings', 'POST', {
     'requestId': str(uuid4()), 'expectedRevision': 0, 'capabilities': ['physician']},
     identities['admin']['active'], admin_session['sessionId'])['body'])
@@ -239,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = args['request']
                 path = req['path']
                 import re
-                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review))',urlsplit(path).path):
+                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|mappings|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review))',urlsplit(path).path):
                     raise ValueError()
                 if req['method'] not in ('GET','POST'): raise ValueError()
                 body = req.get('body')

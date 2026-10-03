@@ -23,6 +23,17 @@ From `client`, run `npm ci`, `npm run generate:api`, and `npm run typecheck`.
 The versioned OpenAPI and generated TypeScript types are committed; regenerate
 both after API edits. CI detects drift. API generation opens no state/source files.
 
+## Mapping activation (#13)
+
+Administrator devices configure the confirmed mapping through `/api/v1/mappings`
+and the client mapping page. No deployment timestamp is seeded. Date-only sources
+require an explicit timezone-bearing clinic-midnight effective boundary. The first
+mapping fixes the initial scan start date; later versions preserve that boundary
+and prior mapping/snapshot history. Synthetic file scanning waits for this setup.
+`HIS_SCAN_FROM_DATE` is now a deprecated optional input, not the scan-range authority.
+See [acceptance and recovery notes](../docs/validation/mapping-progress.md) and
+[operator steps](../docs/validation/mapping-manual.md). Production gates remain closed.
+
 ## Runtime and initial device
 
 Use the prefixed variables documented in the root example configuration. No file

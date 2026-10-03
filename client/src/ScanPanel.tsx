@@ -6,6 +6,7 @@ import type { components } from "./generated/api";
 type Scan = components["schemas"]["ScanView"];
 const states: Record<Scan["status"], string> = {
   disabled: "檔案掃描未啟用",
+  awaiting_configuration: "等待管理者設定映射與初始掃描範圍",
   idle: "尚未掃描",
   queued: "已排入掃描",
   running: "正在讀取來源",
@@ -108,7 +109,9 @@ export function ScanPanel({ api }: { api: ReturnType<typeof clinicApi> }) {
       {scan && (
         <>
           <p role="status">{states[scan.status]}</p>
-          {scan.enabled ? (
+          {scan.status === "awaiting_configuration" ? (
+            <p>尚未設定明確啟用時間及初始範圍，中央不會自動建立案件。</p>
+          ) : scan.enabled ? (
             <>
               <p>
                 合成 DBF 測試 · 中央每 {scan.intervalSeconds}{" "}
