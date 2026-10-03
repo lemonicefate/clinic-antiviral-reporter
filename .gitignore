@@ -51,6 +51,7 @@ output/
 *.log
 logs/
 diagnostics/
+.agy-staff/
 screenshots/
 
 # Python

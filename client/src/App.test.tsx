@@ -151,7 +151,7 @@ test("device loading, recoverable failure and empty recovery are explicit", asyn
   await screen.findByDisplayValue("https://central.invalid");
   await userEvent.type(screen.getByLabelText("操作身分"), "管理者");
   await userEvent.click(screen.getByRole("button", {name: "連線"}));
-  expect(await screen.findByRole("status")).toHaveTextContent("正在載入");
+  expect(await screen.findByText("正在載入裝置清單…")).toHaveAttribute("role", "status");
   await act(async () => { finish?.({status: 400, body: '{"detail":"synthetic temporary rejection"}'}); });
   expect(await screen.findByRole("alert")).toHaveTextContent("載入失敗");
   await userEvent.click(screen.getByRole("button", {name: "重新載入"}));

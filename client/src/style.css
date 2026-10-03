@@ -375,3 +375,7 @@ td input[type="checkbox"] {
   width: 20px;
   height: 20px;
 }
+/* Update checks stay collapsed until the operator chooses to inspect them. */
+.update-panel { margin-block: 0 1rem; padding: .65rem 1rem; border: 1px solid #ccd8df; border-radius: .5rem; }
+.update-panel summary { cursor: pointer; font-weight: 600; }
+.update-panel p:empty { display: none; }

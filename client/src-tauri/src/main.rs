@@ -2,6 +2,7 @@
 
 mod desktop;
 mod startup;
+mod updates;
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use keyring::Entry;
@@ -272,6 +273,7 @@ async fn central_request(mut request: CentralRequest) -> Result<CentralResponse,
 }
 
 fn main() {
+    if updates::run_recovery_if_requested() { return; }
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _| {
             desktop::show_for_launch(app, args.into_iter());
@@ -282,7 +284,12 @@ fn main() {
             connection_settings,
             configure_connection,
             prepare_identity,
-            central_request
+            central_request,
+            updates::update_state,
+            updates::check_updates,
+            updates::prepare_update,
+            updates::install_update,
+            updates::open_update_recovery
         ])
         .run(tauri::generate_context!())
         .expect("Unable to start clinic desktop client");

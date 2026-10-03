@@ -17,3 +17,9 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "nat
 keyring = { version = "3.6", features = ["windows-native"] }
 getrandom = "0.3"
 base64 = "0.22"
+minisign-verify = "0.2"
+sha2 = "0.10"
+windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }
+
+[dev-dependencies]
+tempfile = "3"

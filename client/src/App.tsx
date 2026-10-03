@@ -7,6 +7,7 @@ import { CaseQueue } from "./CaseQueue";
 import { BackupPanel } from "./BackupPanel";
 import { MappingManager } from "./MappingManager";
 import { ExportPreviewPanel } from "./ExportPreview";
+import { UpdatePanel } from "./UpdatePanel";
 
 const capabilityNames: Record<Capability, string> = {
   admin: "管理者",
@@ -159,6 +160,7 @@ export function App() {
         <span>{session ? "中央服務已連線" : "尚未連線"}</span>
       </header>
       <main>
+        <UpdatePanel connectionEpoch={session?.deviceId ?? ""} />
         {session ? (
           <>
             <div className="page-heading">

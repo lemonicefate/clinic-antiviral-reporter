@@ -82,10 +82,12 @@ or removing a test installation, so Windows does not retain a stale startup path
 
 ## 本次已準備的人工測試環境
 
-2026-10-03 已將測試 EXE 複製到獨立暫存目錄並以 `--autostart` 啟動，
-目前應只顯示系統列圖示，不會自動連接中央服務。檔案位置與程序編號記錄於
+2026-10-03 20:05（Asia/Taipei）已在安裝／更新自動測試後重新準備測試版，
+核對 EXE 的 SHA-256 並以 `--autostart` 啟動（準備時 PID 10548）。
+檔案位置、雜湊與程序編號記錄於
 `%LOCALAPPDATA%\ClinicReporterAcceptance\desktop-v1\current.json`，與瀏覽器
-合成測試環境分開。測試程式已可操作，不必自行建置。這是未簽章測試版本。
+合成測試環境分開。測試版已啟動，不需自行建置；若已結束，可依 metadata
+中的 `executable` 重新開啟。這是只供測試的 debug EXE，不能當成正式部署。
 
 **系統列操作（不需登入中央服务）：**
 
@@ -119,10 +121,10 @@ The central release catalog and authorized download API are now implemented;
 see [release distribution progress](desktop-release-progress.md) for its separate
 evidence and maintenance procedure.
 
-This is not the completed signed-update deliverable. Startup update checks,
-confirmation, signature validation, retained rollback packages, corrupt/interrupted
-update rehearsal, and central Windows-service startup/recovery documentation remain
-required. Do not distribute this unsigned test installer as a production release
+Startup update checks, confirmation, signature validation, retained rollback
+packages and corrupt/interrupted update rehearsal are now implemented and tested;
+see the separate release evidence above. Central Windows-service startup/recovery
+documentation remains required. Do not distribute this unsigned test installer as a production release
 or close #21 on the basis of tray/packaging evidence alone. Actual account, device,
 certificate and operational cutover acceptance remains in #25.
 

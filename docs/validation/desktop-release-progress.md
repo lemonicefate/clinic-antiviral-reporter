@@ -1,8 +1,9 @@
 # Desktop release distribution — #21 progress
 
-This records the central distribution portion of #21. The desktop does **not yet**
-check, verify, install, or roll back updates. Do not treat the HTTP distribution
-API or passing service tests as evidence that signed updating works.
+This records central release distribution and native signed updating for #21.
+The desktop checks releases, verifies packages, installs only after confirmation,
+and retains an independently executable recovery tool. Central Windows-service
+startup/recovery documentation and operational acceptance remain open.
 
 ## Implemented contract
 
@@ -17,7 +18,8 @@ API or passing service tests as evidence that signed updating works.
 - Releases contain version, SHA-256, byte count, signature text and public release
   notes. The service distributes signature text; it does not certify its validity.
   A desktop must verify the installer and signed version using its pinned public
-  key before execution. No test fixture here is an executable or valid signature.
+  key before execution. Checked-in service fixtures are inert; native acceptance
+  generates executable packages and synthetic signing keys outside Git.
 
 ## Offline publication
 
@@ -73,38 +75,112 @@ version, or restore a verified pre-upgrade backup into an isolated directory and
 reconcile any later work before cutover; never overwrite live history. Desktop
 version rollback must not roll back the central database.
 
+## Native update and recovery contract
+
+The build embeds `CLINIC_REPORTER_UPDATE_PUBLIC_KEY`; an absent key disables
+updates. No runtime or webview override exists. Both the currently installed
+release and the announced successor must be published centrally. The native
+client bounds HTTPS downloads, rejects redirects, verifies length and SHA-256,
+and checks the pinned minisign signature including the authenticated version
+comment. A valid signature without exactly one matching `version:` field is
+rejected. This requirement concerns version binding, not the minisign algorithm.
+
+Preparation preserves `previous.exe`, `next.exe`, a copy of the current native
+client named `recovery.exe`, and a ready manifest in a new per-user attempt
+folder. Files are never overwritten. Incomplete or malformed manifests do not
+hide older valid plans. Every installer is verified again and held open without
+write/delete sharing through process creation. Updating is limited to the
+registered current-user installation; portable copies cannot update themselves.
+
+Startup checks never install automatically. Installation and rollback require
+an explicit saved-work confirmation. The client exits only after successfully
+starting the installer. Reopen it from the Windows Start menu after installation.
+Neither operation changes central data. If the new client cannot start, execute
+`recovery.exe` from the retained attempt folder and confirm its native dialog.
+This recovery needs neither the new executable nor a running central service.
+
+The cache lives under `%LOCALAPPDATA%\tw.clinic.antiviral-reporter\updates`.
+Use the UI's recovery-folder action before maintenance to locate the retained
+attempt. Keep that folder until operational recovery and retention policy are
+approved; no automated history cleanup exists.
+
+## Signing and synthetic rehearsal
+
+Use a protected signing workstation and retain one controlled signing key across
+releases. Never put its private key, password, installer or deployment settings
+in Git. Embed the public key before building the NSIS installer and use the
+installed Tauri CLI signer with `--app-version` matching the canonical release
+version. Publish the resulting installer and `.sig` through the offline command
+above. The synthetic preparation script demonstrates this sequence; its generated
+keys and debug installers are exclusively for tests, not production distribution.
+
+From the repository with the Python 3.12 virtual environment active:
+
+```powershell
+python scripts/prepare_signed_updates.py
+python -m scripts.check_signed_updates 'REPLACE_WITH_PRINTED_RELEASES_JSON_PATH'
+```
+
+Preparation builds versions 0.1.0 and 0.1.1 into a unique temporary directory.
+Acceptance evidence uses a unique directory under `%LOCALAPPDATA%`, on the same
+volume as the update cache, even when `%TEMP%` is on another disk.
+Acceptance requires a standard Windows account with no existing installation,
+startup preference, product shortcut or update cache. It starts an isolated HTTPS
+service, temporarily trusts only its generated test certificate in CurrentUser,
+uses synthetic credentials, exercises real WebView2/Tauri IPC and NSIS installers,
+then restores the endpoint preference, removes synthetic credentials/certificate,
+uninstalls its own test installation and retains artifacts outside Git. It never
+opens HIS files or enables production exports. Do not use these scripts to replace
+an existing clinic installation.
+
 ## Automated evidence and remaining work
 
-Local verification on 2026-10-03: full Python discovery **90 tests passed**;
-`mypy --check-untyped-defs service scripts` passed for 27 source files; regenerated
-OpenAPI/TypeScript bindings passed `npm run typecheck`. These results cover central
-distribution, not a native signed installation or recovery drill.
+Local verification on 2026-10-03: Python discovery **90 passed**, Vitest **11
+passed**, browser Playwright **2 passed**, Rust **5 passed**, frontend build passed,
+and mypy passed for 29 source files. All 10 existing real-HTTPS business journeys
+and the native lifecycle harness also passed. The first Python invocation used the system
+interpreter without dependencies; the successful run used the repository's Python
+3.12 virtual environment. Browser tests mock native IPC; they are separate from
+the real Windows rehearsal below.
 
-`python -m unittest tests.test_client_releases tests.test_migration -v` covers
-publication/retry, audit uniqueness, conflicting revisions, immutable old
-versions, byte-for-byte download, damaged artifacts, uncatalogued partial files,
-device revocation, exclusive ownership, invalid input, schema 1–10 upgrades,
-future-schema refusal, and release backup/restore. All data is generated under a
-temporary directory. Partial-file tests model interrupted on-disk state; they
-are not power-loss tests.
+The final native rehearsal used synthetic releases under temporary folder
+`ClinicReporter Signed Updates cqbeznvi`; final evidence was retained under
+`%LOCALAPPDATA%\ClinicReporter Update Acceptance u_fjwy3w`. Both are outside Git. It verified:
 
-An injected audit storage failure also verifies that an installer already copied
-to central state remains unavailable when the transaction fails, and that the
-same request can subsequently recover without replacing the retained bytes.
-An unreadable-database test checks that startup failure preserves the original
-database bytes and emits a controlled error without an internal traceback/path.
+- real HTTPS release discovery and bounded package retrieval;
+- truncated response, prematurely disconnected stream and corrupted cache refusal;
+- refusal to install without confirmation, keeping the current process alive;
+- exact installed executable bytes for 0.1.0 → 0.1.1 → 0.1.0;
+- preserved device connection credentials and disabled startup preference;
+- a second upgrade followed by offline recovery with the new executable unavailable.
 
-Two-axis review used the approved `be7df98` baseline and the uncommitted release
-changes, with gpt-6-luna/max for both reviewers. Standards review found outdated
-schema documentation and a database-open error path; both were corrected, and
-the latter was independently rechecked. Spec review found no distribution defect
-and retained the unfinished native/operational #21 acceptance below.
+The exact-byte comparison accounts only for Tauri's unique bundle marker changing
+from `UNK` to `NSS` during NSIS bundling. All remaining bytes must match. A startup
+check/manual-operation race surfaced in the real rehearsal, received a failing
+then passing UI regression test, and the installers were rebuilt before the final
+successful run. This rehearsal does not simulate power loss or actual Windows
+sign-out/sign-in.
 
-Still required for #21: pinned-key signature and signed-version verification,
-bounded HTTPS download, retained verified recovery installer, explicit update
-confirmation, interrupted-update recovery, actual installed upgrade/rollback
-with synthetic keys outside Git, and central Windows-service startup/recovery
-instructions. The tray and Windows sign-in manual checks remain in
-[desktop lifecycle progress](desktop-lifecycle-progress.md). No manual signed
-update environment is ready yet; prepare and automatically exercise that
-environment before asking a person to test it.
+Rust public-boundary tests generate real synthetic signatures and cover wrong key,
+corruption, relabelled or missing signed version, retained recovery bytes, malformed
+newest manifests, unrelated cache files, Unicode plan IDs and optional release
+metadata. Service tests cover publication/retry, revisions, immutable versions,
+revocation, damaged/partial artifacts, exclusive ownership, migration and backup.
+
+The prior central-distribution review used the approved `be7df98` baseline. Native
+review initially used AGY Claude Opus 5.5; its low-severity findings were addressed
+in the subsequent implementation. Follow-up Opus and Sonnet attempts exhausted
+quota; the requested Gemini 3.8 Flash medium fallback returned `Request Changes`.
+After correcting concurrency, same-volume retention, Win32 callback declarations,
+installer-exit waiting and independent cleanup stages, its focused re-review
+returned `Approve` (job `review-muscgc38-53116514`). Full reports remain in the
+ignored `.agy-staff/jobs` directory. Reviewers inspected code; the host executed
+the tests. This approval covers the corrected paths, not production deployment.
+
+Still required for #21: central Windows-service startup/recovery instructions.
+Tray and real Windows sign-in checks remain in
+[desktop lifecycle progress](desktop-lifecycle-progress.md); a fresh temporary
+manual client was prepared and launched after the automated installer tests.
+Its path, hash and PID are in the documented local metadata. Actual clinic account, certificate, firewall and
+operational cutover evidence remains in #25. M0 and production export gates stay
+unchanged.

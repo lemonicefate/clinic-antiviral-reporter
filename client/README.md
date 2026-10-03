@@ -9,7 +9,9 @@ allocation editing, bulk same-lot replacement, exclusion/reinclusion and case hi
 Native close-to-tray, explicit quit, single-instance activation, configurable
 current-user login startup, and a per-user NSIS test installer are implemented.
 See [desktop lifecycle evidence](../docs/validation/desktop-lifecycle-progress.md).
-Signed updates and retained rollback remain pending; #21 is not complete.
+Signed updates and independent offline recovery are implemented and exercised
+with synthetic Windows installers. See [release evidence and signing workflow](../docs/validation/desktop-release-progress.md).
+Central Windows-service deployment work remains open; #21 is not complete.
 
 ## Development
 
