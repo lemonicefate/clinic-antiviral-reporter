@@ -310,6 +310,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scans/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["getScanStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh */
+        post: operations["requestScan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -803,6 +837,72 @@ export interface components {
             /** Patientconfirmed */
             patientConfirmed: boolean;
         };
+        /** ScanCommand */
+        ScanCommand: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /**
+             * Datefrom
+             * Format: date
+             */
+            dateFrom: string;
+            /**
+             * Dateto
+             * Format: date
+             */
+            dateTo: string;
+        };
+        /** ScanView */
+        ScanView: {
+            /** Revision */
+            revision: number;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "disabled" | "idle" | "queued" | "running" | "succeeded" | "partial" | "failed" | "interrupted";
+            /** Jobid */
+            jobId?: string | null;
+            /** Datefrom */
+            dateFrom?: string | null;
+            /** Dateto */
+            dateTo?: string | null;
+            /** Startedat */
+            startedAt?: number | null;
+            /** Finishedat */
+            finishedAt?: number | null;
+            /** Lastsuccessat */
+            lastSuccessAt?: number | null;
+            /**
+             * Stale
+             * @default true
+             */
+            stale: boolean;
+            /** Diagnostic */
+            diagnostic?: string | null;
+            /**
+             * Counts
+             * @default {}
+             */
+            counts: {
+                [key: string]: number;
+            };
+            /** Intervalseconds */
+            intervalSeconds: number;
+            /**
+             * Synthetic
+             * @default true
+             * @constant
+             */
+            synthetic: true;
+        };
         /** SessionView */
         SessionView: {
             /** Sessionid */
@@ -902,7 +1002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1034,7 +1134,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1105,7 +1205,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1141,7 +1241,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1250,7 +1350,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1322,7 +1422,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1394,7 +1494,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1430,7 +1530,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */
@@ -1500,7 +1600,75 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getScanStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requestScan: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"] | components["schemas"]["ScanView"];
                 };
             };
             /** @description Validation Error */

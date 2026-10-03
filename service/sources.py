@@ -66,47 +66,50 @@ def ingest_synthetic(db, orders, scenario, device, session):
                 facts["PD011M1.NAME"] = "合成病人甲（來源更正）"
             if scenario in ("cancelled", "unseen"):
                 facts["RG011M1.TREAT"] = "C" if scenario == "cancelled" else "N"
-        serialized = json.dumps(facts, ensure_ascii=False, sort_keys=True)
-        if facts["RG011M1.TREAT"] == "N":
-            quarantine(db, key, facts, "registration_not_seen_with_order", row, device, session)
-            counts["quarantined"] += 1
-            continue
-        recovered = [q["sequence"] for q in db.execute(
-            "SELECT sequence FROM source_quarantine WHERE source_key=? AND resolved=0", (key,))]
-        db.execute("UPDATE source_quarantine SET resolved=1 WHERE source_key=? AND resolved=0", (key,))
-        if recovered and row:
-            db.execute("UPDATE report_cases SET revision=revision+1 WHERE id=?", (row["id"],))
-        if recovered:
-            db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
-                       ("source_recovered", device["id"], session["operator"], time.time(), json.dumps({
-                           "caseId": row["id"] if row else None, "sourceKey": key, "quarantineSequences": recovered,
-                           "revisionBefore": row["revision"] if row else None,
-                           "revisionAfter": row["revision"] + 1 if row else None, "source": "synthetic"})))
-        old = db.execute("SELECT * FROM source_snapshots WHERE case_id=? ORDER BY sequence DESC LIMIT 1",
-                         (row["id"],)).fetchone() if row else None
-        if old is not None and json.loads(old["facts"]) == facts:
-            counts["unchanged"] += 1
-            continue
-        case_id = row["id"] if row else str(uuid4())
-        if row is None:
-            db.execute("INSERT INTO report_cases(id,source_key,revision,reported_quantity) VALUES (?,?,1,?)",
-                       (case_id, key, int(facts["CH012M1.USE_TAMT"])))
-        snapshot = db.execute("INSERT INTO source_snapshots(case_id,captured_at,facts) VALUES (?,?,?)",
-                              (case_id, time.time(), serialized)).lastrowid
-        if row is None:
-            db.execute("UPDATE report_cases SET reporting_snapshot=?,reviewed_snapshot=? WHERE id=?",
-                       (snapshot, snapshot if facts["RG011M1.TREAT"] == "Y" else None, case_id))
-        else:
-            db.execute("UPDATE report_cases SET revision=revision+1 WHERE id=?", (case_id,))
-        kind = "source_changed" if row else "case_created"
-        db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
-                   (kind, device["id"], session["operator"], time.time(), json.dumps({
-                       "caseId": case_id, "sourceKey": key, "synthetic": True,
-                       "sourceSnapshot": snapshot, "previousSnapshot": old["sequence"] if old else None,
-                       "source": "synthetic", "before": json.loads(old["facts"]) if old else None,
-                       "after": facts}, ensure_ascii=False)))
-        counts["changed" if row else "created"] += 1
+        counts[ingest_observation(db, key, facts, device, session)] += 1
     return counts
+
+
+def ingest_observation(db, key, facts, device, session):
+    row = db.execute("SELECT * FROM report_cases WHERE source_key=?", (key,)).fetchone()
+    serialized = json.dumps(facts, ensure_ascii=False, sort_keys=True)
+    if facts["RG011M1.TREAT"] == "N":
+        quarantine(db, key, facts, "registration_not_seen_with_order", row, device, session)
+        return "quarantined"
+    recovered = [q["sequence"] for q in db.execute(
+        "SELECT sequence FROM source_quarantine WHERE source_key=? AND resolved=0", (key,))]
+    db.execute("UPDATE source_quarantine SET resolved=1 WHERE source_key=? AND resolved=0", (key,))
+    if recovered and row:
+        db.execute("UPDATE report_cases SET revision=revision+1 WHERE id=?", (row["id"],))
+    if recovered:
+        db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
+                   ("source_recovered", device["id"], session["operator"], time.time(), json.dumps({
+                       "caseId": row["id"] if row else None, "sourceKey": key, "quarantineSequences": recovered,
+                       "revisionBefore": row["revision"] if row else None,
+                       "revisionAfter": row["revision"] + 1 if row else None, "source": "synthetic"})))
+    old = db.execute("SELECT * FROM source_snapshots WHERE case_id=? ORDER BY sequence DESC LIMIT 1",
+                     (row["id"],)).fetchone() if row else None
+    if old is not None and json.loads(old["facts"]) == facts:
+        return "unchanged"
+    case_id = row["id"] if row else str(uuid4())
+    if row is None:
+        db.execute("INSERT INTO report_cases(id,source_key,revision,reported_quantity) VALUES (?,?,1,?)",
+                   (case_id, key, int(facts["CH012M1.USE_TAMT"])))
+    snapshot = db.execute("INSERT INTO source_snapshots(case_id,captured_at,facts) VALUES (?,?,?)",
+                          (case_id, time.time(), serialized)).lastrowid
+    if row is None:
+        db.execute("UPDATE report_cases SET reporting_snapshot=?,reviewed_snapshot=? WHERE id=?",
+                   (snapshot, snapshot if facts["RG011M1.TREAT"] == "Y" else None, case_id))
+    else:
+        db.execute("UPDATE report_cases SET revision=revision+1 WHERE id=?", (case_id,))
+    kind = "source_changed" if row else "case_created"
+    db.execute("INSERT INTO audit_events(kind,device_id,operator,occurred_at,changes) VALUES (?,?,?,?,?)",
+               (kind, device["id"], session["operator"], time.time(), json.dumps({
+                   "caseId": case_id, "sourceKey": key, "synthetic": True,
+                   "sourceSnapshot": snapshot, "previousSnapshot": old["sequence"] if old else None,
+                   "source": "synthetic", "before": json.loads(old["facts"]) if old else None,
+                   "after": facts}, ensure_ascii=False)))
+    return "changed" if row else "created"
 
 
 def register_source_routes(app: FastAPI, permitted: Callable, mutation_result) -> None:

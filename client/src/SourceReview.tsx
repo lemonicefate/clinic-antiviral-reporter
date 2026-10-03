@@ -17,6 +17,21 @@ const labels: Record<string, string> = {
   "RG011M1.TREAT": "來源看診狀態",
   "CH012M1.SYS_2015": "來源醫令",
 };
+const quarantineLabels: Record<string, string> = {
+  registration_not_seen_with_order: "尚未看診但存在醫令",
+  source_not_observed: "原來源未再觀測到",
+  orphan_join: "缺少父資料，等待重試",
+  ambiguous_join: "父資料關聯不唯一",
+  patient_join_mismatch: "病人關聯不一致",
+  ambiguous_key: "來源醫令鍵重複",
+  missing_key: "缺少來源醫令鍵",
+  code_mismatch: "藥品代碼不一致",
+  decoding_error: "來源編碼無法辨識",
+  partial_or_unsupported_table: "來源可能尚在寫入或格式不支援",
+  sharing_or_access_denied: "來源檔被鎖定或無讀取權限",
+  source_unavailable: "來源無法存取",
+  invalid_required_field: "必要欄位不完整或格式錯誤",
+};
 
 export function SourceReview({
   api,
@@ -243,9 +258,7 @@ export function SourceQuarantine({ api }: { api: Api }) {
         <p key={item.sequence}>
           {item.sourceKey}：
           <span>
-            {item.diagnosis === "registration_not_seen_with_order"
-              ? "尚未看診但存在醫令"
-              : "原來源未再觀測到"}
+            {quarantineLabels[item.diagnosis] ?? "來源檔案尚待管理者確認"}
           </span>
           {" · "}
           {item.resolved ? "來源已恢復，案件仍須人工核對" : "待重試"} · 觀測{" "}

@@ -7,6 +7,7 @@ import { ReasonEditor } from "./ReasonEditor";
 import { ReportingEditor } from "./ReportingEditor";
 import { BulkLotEditor } from "./BulkLotEditor";
 import { SourceReview, SourceQuarantine } from "./SourceReview";
+import { ScanPanel } from "./ScanPanel";
 
 type Queue = components["schemas"]["QueueView"];
 type Detail = components["schemas"]["CaseDetail"];
@@ -186,6 +187,7 @@ export function CaseQueue({
       <p className="notice">
         合成資料測試：非真實 HIS。來源鍵與編碼尚未完成真機驗證；正式匯出停用。
       </p>
+      <ScanPanel api={api} />
       <form onSubmit={search} className="queue-filters">
         <label>
           醫師篩選

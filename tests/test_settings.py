@@ -4,6 +4,16 @@ from service.settings import Settings, SettingsError
 
 
 class SettingsTest(unittest.TestCase):
+    def test_synthetic_dbf_requires_explicit_development_range_and_never_enables_production(self):
+        env = self.environment() | {"CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED": "true"}
+        for extra in ({}, {"CLINIC_REPORTER_SYNTHETIC_ENABLED": "true"},
+                      {"CLINIC_REPORTER_SYNTHETIC_ENABLED": "true", "CLINIC_REPORTER_HIS_SCAN_FROM_DATE": "invalid"},
+                      {"CLINIC_REPORTER_SYNTHETIC_ENABLED": "true", "CLINIC_REPORTER_HIS_SCAN_FROM_DATE": "2026-10-03",
+                       "CLINIC_REPORTER_ENV": "production"}):
+            with self.subTest(extra=extra), self.assertRaises(SettingsError):
+                Settings.from_environment(env | extra)
+        self.assertFalse(Settings.from_environment(self.environment()).synthetic_dbf_enabled)
+
     def environment(self):
         return {
             "CLINIC_REPORTER_STATE_DIR": r"C:\ClinicReporter",

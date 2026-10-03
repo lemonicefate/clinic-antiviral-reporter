@@ -1,6 +1,7 @@
 """Central-only runtime configuration. Loading settings performs no source I/O."""
 
 from dataclasses import dataclass
+from datetime import date
 import ipaddress
 from pathlib import PureWindowsPath
 import re
@@ -57,6 +58,8 @@ class Settings:
     backup_interval_seconds: int = 1800
     export_enabled: bool = False
     synthetic_enabled: bool = False
+    synthetic_dbf_enabled: bool = False
+    scan_from_date: date | None = None
 
     @classmethod
     def from_environment(cls, environment: Mapping[str, str]) -> "Settings":
@@ -74,6 +77,15 @@ class Settings:
         synthetic = environment.get("CLINIC_REPORTER_SYNTHETIC_ENABLED", "false")
         if synthetic not in ("true", "false") or (mode == "production" and synthetic == "true"):
             raise SettingsError("Synthetic fixtures are allowed only in explicit development mode")
+        dbf = environment.get("CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED", "false")
+        scan_from = None
+        if dbf not in ("true", "false") or (dbf == "true" and (mode != "development" or synthetic != "true")):
+            raise SettingsError("Synthetic DBF scans require explicit development synthetic mode")
+        if dbf == "true":
+            try:
+                scan_from = date.fromisoformat(environment.get("CLINIC_REPORTER_HIS_SCAN_FROM_DATE", ""))
+            except ValueError:
+                raise SettingsError("Synthetic DBF scans require an explicit initial date") from None
         host = environment.get("CLINIC_REPORTER_BIND_HOST", "127.0.0.1")
         try:
             address = ipaddress.ip_address(host)
@@ -102,4 +114,6 @@ class Settings:
             integer("BACKUP_INTERVAL_SECONDS", 1800, 3600),
             enabled == "true",
             synthetic == "true",
+            dbf == "true",
+            scan_from,
         )

@@ -31,6 +31,8 @@ sys.path.insert(0, str(REPO))
 from service.app import create_app
 from service.settings import Settings
 from service.provision import initialize_administrator
+from service.cases import clinic_today
+from scripts.synthetic_dbf import prepare as prepare_dbf
 
 ROOT = Path(os.environ['LOCALAPPDATA']) / 'ClinicReporterAcceptance' / 'case-queue-v1'
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -64,7 +66,11 @@ settings = Settings.from_environment({
     'CLINIC_REPORTER_BACKUP_ROOT': r'\\synthetic-his\backup',
     'CLINIC_REPORTER_EXPORT_ENABLED': 'false',
     'CLINIC_REPORTER_SYNTHETIC_ENABLED': 'true',
+    'CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED': os.environ.get('CLINIC_ACCEPTANCE_DBF', 'false'),
+    'CLINIC_REPORTER_HIS_SCAN_FROM_DATE': clinic_today().isoformat(),
 })
+if settings.synthetic_dbf_enabled:
+    prepare_dbf(RUN/'state', clinic_today())
 identities = {'admin': {'active': secrets.token_urlsafe(32)}, 'doctor': {}, 'reporting': {}, 'new': {}}
 initialize_administrator(settings, '測試管理電腦 A', identities['admin']['active'])
 opener = build_opener(ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context(cafile=str(RUN/'tls.crt'))))
@@ -208,6 +214,8 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path == '/control':
                     if data['action'] == 'start': start()
                     elif data['action'] == 'stop': stop()
+                    elif data['action'] in ('dbf-valid', 'dbf-orphan') and settings.synthetic_dbf_enabled:
+                        prepare_dbf(RUN/'state', clinic_today(), data['action'].removeprefix('dbf-'))
                     elif data['action'] == 'quit':
                         stop()
                         Thread(target=self.server.shutdown,daemon=True).start()
@@ -231,7 +239,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = args['request']
                 path = req['path']
                 import re
-                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review))',urlsplit(path).path):
+                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review))',urlsplit(path).path):
                     raise ValueError()
                 if req['method'] not in ('GET','POST'): raise ValueError()
                 body = req.get('body')

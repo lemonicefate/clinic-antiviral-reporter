@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 6:
+            if version > 7:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -114,6 +114,23 @@ class Store:
                         resolved INTEGER NOT NULL DEFAULT 0
                     );
                     PRAGMA user_version=6;
+                    COMMIT;
+                """)
+            if version < 7:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE scan_state (
+                        id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL,
+                        current_job TEXT, last_success REAL
+                    );
+                    INSERT INTO scan_state VALUES (1,0,NULL,NULL);
+                    CREATE TABLE scan_runs (
+                        id TEXT PRIMARY KEY, status TEXT NOT NULL, date_from TEXT NOT NULL,
+                        date_to TEXT NOT NULL, device_id TEXT NOT NULL, operator TEXT NOT NULL,
+                        requested_at REAL NOT NULL, started_at REAL, finished_at REAL,
+                        diagnostic TEXT, counts TEXT NOT NULL DEFAULT '{}'
+                    );
+                    PRAGMA user_version=7;
                     COMMIT;
                 """)
         except Exception:

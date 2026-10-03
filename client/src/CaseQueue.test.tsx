@@ -33,6 +33,8 @@ test("physician explicitly selects a tied order and outage clears patient conten
       };
     if (command === "configure_connection") return;
     const { request } = args as { request: { path: string } };
+    if (request.path === "/api/v1/scans/status")
+      return {status: 200, body: JSON.stringify({revision: 0, enabled: false, status: "disabled", intervalSeconds: 60})};
     if (request.path === "/api/v1/reason-options")
       return {
         status: 200,

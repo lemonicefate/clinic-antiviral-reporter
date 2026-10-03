@@ -61,6 +61,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Createsession"
@@ -347,6 +350,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Createpairing"
@@ -487,6 +493,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Revokedevice"
@@ -579,6 +588,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Refreshsyntheticorders"
@@ -910,6 +922,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Savereason"
@@ -1084,6 +1099,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Savedispensing"
@@ -1262,6 +1280,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Setcaseexclusion"
@@ -1354,6 +1375,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Applybulklot"
@@ -1522,9 +1546,169 @@
                     },
                     {
                       "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
                     }
                   ],
                   "title": "Response Reviewsource"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scans/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "getScanStatus",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scans": {
+      "post": {
+        "summary": "Refresh",
+        "operationId": "requestScan",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
+                    }
+                  ],
+                  "title": "Response Requestscan"
                 }
               }
             }
@@ -2596,6 +2780,175 @@
           "patientConfirmed"
         ],
         "title": "SaveReason"
+      },
+      "ScanCommand": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "dateFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Datefrom"
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date",
+            "title": "Dateto"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "dateFrom",
+          "dateTo"
+        ],
+        "title": "ScanCommand"
+      },
+      "ScanView": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "idle",
+              "queued",
+              "running",
+              "succeeded",
+              "partial",
+              "failed",
+              "interrupted"
+            ],
+            "title": "Status"
+          },
+          "jobId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobid"
+          },
+          "dateFrom": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datefrom"
+          },
+          "dateTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dateto"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "lastSuccessAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastsuccessat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": true
+          },
+          "diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnostic"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "default": {}
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "title": "Intervalseconds"
+          },
+          "synthetic": {
+            "type": "boolean",
+            "const": true,
+            "title": "Synthetic",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision",
+          "enabled",
+          "status",
+          "intervalSeconds"
+        ],
+        "title": "ScanView"
       },
       "SessionView": {
         "properties": {

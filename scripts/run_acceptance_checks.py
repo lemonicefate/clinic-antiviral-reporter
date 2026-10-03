@@ -10,11 +10,11 @@ import time
 from urllib.request import ProxyHandler, Request, build_opener
 
 
-def main() -> None:
+def run_checks(dbf: bool = False) -> None:
     repo = Path(__file__).resolve().parents[1]
     temporary = tempfile.TemporaryDirectory(prefix="clinic-synthetic-e2e-")
     with temporary as directory:
-        environment = dict(os.environ, LOCALAPPDATA=directory)
+        environment = dict(os.environ, LOCALAPPDATA=directory, CLINIC_ACCEPTANCE_DBF="true" if dbf else "false")
         process = subprocess.Popen([sys.executable, "-m", "scripts.acceptance_environment"],
                                    cwd=repo, env=environment, stdout=subprocess.DEVNULL,
                                    stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -32,7 +32,8 @@ def main() -> None:
                 time.sleep(0.1)
             else:
                 raise RuntimeError("Synthetic acceptance startup timed out")
-            for script in ("case-queue.cjs", "reasons.cjs", "reporting.cjs", "reporting-conflicts.cjs", "source-review.cjs"):
+            scripts = ("scanner.cjs",) if dbf else ("case-queue.cjs", "reasons.cjs", "reporting.cjs", "reporting-conflicts.cjs", "source-review.cjs")
+            for script in scripts:
                 subprocess.run(["node", str(repo / "client/e2e-real" / script)], cwd=repo / "client",
                                env=environment, check=True, timeout=120)
         finally:
@@ -66,4 +67,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_checks()
+    run_checks(dbf=True)

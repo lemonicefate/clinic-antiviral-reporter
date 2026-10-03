@@ -99,8 +99,8 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.fail("Future schema should not start")
             self.assertEqual(path.read_bytes(), original)
 
-    def test_version_three_four_and_five_history_survives_source_migration(self):
-        for version in (3, 4, 5):
+    def test_version_three_through_six_history_survives_scanner_migration(self):
+        for version in (3, 4, 5, 6):
             with tempfile.TemporaryDirectory() as directory:
                 credential = secrets.token_urlsafe(32)
                 case_id = "11111111-1111-4111-8111-111111111111"
@@ -133,13 +133,25 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     db.execute("UPDATE report_cases SET reason=?", ("23:未滿5歲及65歲以上之類流感患者",))
                     db.execute("PRAGMA user_version=4")
                     db.commit()
-                if version == 5:
+                if version >= 5:
                     db.execute("ALTER TABLE report_cases ADD COLUMN lots TEXT NOT NULL DEFAULT '[]'")
                     db.execute("ALTER TABLE report_cases ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0")
                     db.execute("ALTER TABLE report_cases ADD COLUMN exclusion_reason TEXT")
                     db.execute("UPDATE report_cases SET lots=?,excluded=1,exclusion_reason=?",
                                ('[{"lot":"SYN-OLD-LOT","quantity":10}]', 'synthetic previous decision'))
                     db.execute("PRAGMA user_version=5")
+                    db.commit()
+                if version == 6:
+                    db.executescript("""
+                        ALTER TABLE report_cases ADD COLUMN reporting_snapshot INTEGER;
+                        ALTER TABLE report_cases ADD COLUMN reviewed_snapshot INTEGER;
+                        UPDATE report_cases SET reporting_snapshot=1,reviewed_snapshot=1;
+                        CREATE TABLE source_quarantine(sequence INTEGER PRIMARY KEY,source_key TEXT,
+                            captured_at REAL,facts TEXT,diagnosis TEXT,last_seen REAL,attempts INTEGER,resolved INTEGER);
+                        PRAGMA user_version=6;
+                    """)
+                    db.execute("INSERT INTO source_snapshots VALUES (2,?,2,?)", (case_id, json.dumps(facts | {"CH012M1.USE_TAMT": "5"})))
+                    db.execute("INSERT INTO source_quarantine VALUES (1,?,1,'{}','source_not_observed',2,3,0)", ("synthetic-v1:SYN-OLD-ORDER",))
                     db.commit()
                 db.close()
                 with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
@@ -149,7 +161,13 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.assertEqual(detail["revision"], 1)
                     self.assertEqual(detail["reportedQuantity"], 10)
                     self.assertEqual(detail["reason"], "23:未滿5歲及65歲以上之類流感患者" if version >= 4 else None)
-                    self.assertEqual(detail["lots"], [{"lot": "SYN-OLD-LOT", "quantity": 10}] if version == 5 else [])
-                    self.assertEqual(detail["excluded"], version == 5)
+                    self.assertEqual(detail["lots"], [{"lot": "SYN-OLD-LOT", "quantity": 10}] if version >= 5 else [])
+                    self.assertEqual(detail["excluded"], version >= 5)
                     self.assertEqual(detail["reportingSourceSnapshot"], 1)
-                    self.assertEqual(detail["latestSourceSnapshot"], 1)
+                    self.assertEqual(detail["latestSourceSnapshot"], 2 if version == 6 else 1)
+                    if version == 6:
+                        self.assertTrue(detail["sourceReviewRequired"])
+                        self.assertTrue(detail["sourceUnresolved"])
+                        quarantine = client.get("/api/v1/source-quarantine", headers={
+                            "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
+                        self.assertEqual(quarantine[0]["attempts"], 3)

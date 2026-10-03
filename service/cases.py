@@ -307,3 +307,5 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
     register_reporting_routes(app, permitted, mutation_result)
     from service.sources import register_source_routes
     register_source_routes(app, permitted, mutation_result)
+    from service.scanner import register_scan_routes
+    register_scan_routes(app, permitted, mutation_result)

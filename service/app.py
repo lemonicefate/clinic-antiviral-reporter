@@ -17,6 +17,7 @@ from service.settings import Settings
 from service.storage import Store, digest, saved_result, save_result
 from service.cases import CaseView, RefreshView, register_case_routes
 from service.reporting import BulkLotView
+from service.scanner import Scanner, ScanView
 
 
 class Command(BaseModel):
@@ -79,16 +80,19 @@ class AuditView(BaseModel):
 
 # requestId identifies the original command, even when a caller accidentally
 # retries it on another mutation route. Document every possible replay shape.
-MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView | BulkLotView
+MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView | BulkLotView | ScanView
 
 
 def create_app(settings: Settings) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.store = Store(Path(settings.state_dir))
+        app.state.scanner = Scanner(app.state.store, settings)
         try:
+            app.state.scanner.start()
             yield
         finally:
+            app.state.scanner.close()
             app.state.store.close()
 
     app = FastAPI(title="Clinic Antiviral Reporter", version="1.0.0", lifespan=lifespan,
