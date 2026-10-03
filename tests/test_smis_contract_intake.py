@@ -25,7 +25,10 @@ class SmisContractIntakeTest(unittest.TestCase):
             result = prepare(output, template=source, repository=repository,
                              created_at=datetime(2026, 10, 3, tzinfo=timezone.utc))
 
-            self.assertEqual(result, output)
+            # Windows may spell the same temporary directory with its long
+            # name or an 8.3 short name.  Compare canonical paths so the
+            # assertion checks the returned location rather than spelling.
+            self.assertEqual(result.resolve(), output.resolve())
             self.assertEqual((output / "template.xlsx").read_bytes(), source.read_bytes())
             digest = hashlib.sha256(source.read_bytes()).hexdigest().upper()
             manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
