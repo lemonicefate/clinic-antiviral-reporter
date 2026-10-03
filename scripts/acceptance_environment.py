@@ -67,6 +67,8 @@ settings = Settings.from_environment({
     'CLINIC_REPORTER_EXPORT_ENABLED': 'false',
     'CLINIC_REPORTER_SYNTHETIC_ENABLED': 'true',
     'CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED': os.environ.get('CLINIC_ACCEPTANCE_DBF', 'false'),
+    'CLINIC_REPORTER_BACKUP_ENABLED': os.environ.get('CLINIC_ACCEPTANCE_BACKUP', 'false'),
+    'CLINIC_REPORTER_SYNTHETIC_BACKUP_ENABLED': os.environ.get('CLINIC_ACCEPTANCE_BACKUP', 'false'),
     'CLINIC_REPORTER_HIS_SCAN_FROM_DATE': clinic_today().isoformat(),
 })
 if settings.synthetic_dbf_enabled:
@@ -95,7 +97,7 @@ def start():
     global server, worker
     if worker and worker.is_alive():
         return
-    server = uvicorn.Server(uvicorn.Config(create_app(settings), host='127.0.0.1', port=TLS_PORT,
+    server = uvicorn.Server(uvicorn.Config(create_app(settings, tls_files=(RUN/'tls.crt', RUN/'tls.key')), host='127.0.0.1', port=TLS_PORT,
                             ssl_certfile=str(RUN/'tls.crt'), ssl_keyfile=str(RUN/'tls.key'),
                             access_log=False, log_level='critical'))
     worker = Thread(target=server.run, daemon=True)
@@ -246,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = args['request']
                 path = req['path']
                 import re
-                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|mappings|export-preview|exports|exports/[a-f0-9-]+/file|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|outage-rescans/latest|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review|outside-completion))',urlsplit(path).path):
+                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|mappings|export-preview|exports|exports/[a-f0-9-]+/file|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|source-quarantine|scans|scans/status|outage-rescans/latest|backups|backups/status|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history|source-review|outside-completion))',urlsplit(path).path):
                     raise ValueError()
                 if req['method'] not in ('GET','POST'): raise ValueError()
                 body = req.get('body')

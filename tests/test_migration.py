@@ -99,8 +99,8 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.fail("Future schema should not start")
             self.assertEqual(path.read_bytes(), original)
 
-    def test_version_three_through_eight_history_survives_migration(self):
-        for version in (3, 4, 5, 6, 7, 8):
+    def test_version_three_through_nine_history_survives_migration(self):
+        for version in (3, 4, 5, 6, 7, 8, 9):
             with tempfile.TemporaryDirectory() as directory:
                 credential = secrets.token_urlsafe(32)
                 case_id = "11111111-1111-4111-8111-111111111111"
@@ -164,7 +164,7 @@ class MigrationAcceptanceTest(unittest.TestCase):
                             'v3-admin','SYN-DR-A',98,99,100,NULL,'{"created":1}');
                         PRAGMA user_version=7;
                     """)
-                if version == 8:
+                if version >= 8:
                     db.executescript("""
                         CREATE TABLE mapping_versions(sequence INTEGER PRIMARY KEY,effective_from TEXT UNIQUE,
                             initial_date_from TEXT,internal_code TEXT,nhi_code TEXT,material_value TEXT,
@@ -173,17 +173,38 @@ class MigrationAcceptanceTest(unittest.TestCase):
                         ALTER TABLE scan_runs ADD COLUMN mapping_revision INTEGER NOT NULL DEFAULT 0;
                         PRAGMA user_version=8;
                     """)
+                if version == 9:
+                    db.executescript("""
+                        ALTER TABLE scan_runs ADD COLUMN outage_recovery INTEGER NOT NULL DEFAULT 0;
+                        CREATE TABLE scan_case_observations(scan_job_id TEXT,case_id TEXT,source_snapshot INTEGER,
+                            PRIMARY KEY(scan_job_id,case_id));
+                        CREATE TABLE outside_completions(case_id TEXT PRIMARY KEY,source_snapshot INTEGER,
+                            scan_job_id TEXT,device_id TEXT,operator TEXT,recorded_at REAL,reason TEXT);
+                        PRAGMA user_version=9;
+                    """)
+                    db.execute("UPDATE report_cases SET excluded=0")
+                    db.execute("INSERT INTO outside_completions VALUES (?,1,'synthetic-old-job','v3-admin','SYN-DR-A',101,'synthetic paper completion')", (case_id,))
+                    db.commit()
                 db.close()
                 with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
                     detail = client.get(f"/api/v1/cases/{case_id}", headers={
                         "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
                     self.assertEqual(detail["snapshots"][0]["raw"], facts)
                     self.assertEqual(detail["revision"], 1)
-                    self.assertIsNone(detail["outsideCompletion"])
+                    if version == 9:
+                        self.assertEqual(detail["status"], "outside_completed")
+                        self.assertEqual(detail["outsideCompletion"]["reason"], "synthetic paper completion")
+                        self.assertEqual(detail["outsideCompletion"]["recordedAt"], 101)
+                    else:
+                        self.assertIsNone(detail["outsideCompletion"])
+                    backup = client.get("/api/v1/backups/status", headers={
+                        "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
+                    self.assertEqual(backup["status"], "disabled")
+                    self.assertTrue(backup["rpoBreached"])
                     self.assertEqual(detail["reportedQuantity"], 10)
                     self.assertEqual(detail["reason"], "23:未滿5歲及65歲以上之類流感患者" if version >= 4 else None)
                     self.assertEqual(detail["lots"], [{"lot": "SYN-OLD-LOT", "quantity": 10}] if version >= 5 else [])
-                    self.assertEqual(detail["excluded"], version >= 5)
+                    self.assertEqual(detail["excluded"], 5 <= version < 9)
                     self.assertEqual(detail["reportingSourceSnapshot"], 1)
                     self.assertEqual(detail["latestSourceSnapshot"], 2 if version >= 6 else 1)
                     mappings = client.get("/api/v1/mappings", headers={

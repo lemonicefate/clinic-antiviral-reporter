@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { clinicApi, OperationError, requireData } from "./api";
 import type { Capability, ConnectionSettings, Device, Session } from "./api";
 import { CaseQueue } from "./CaseQueue";
+import { BackupPanel } from "./BackupPanel";
 import { MappingManager } from "./MappingManager";
 import { ExportPreviewPanel } from "./ExportPreview";
 
@@ -169,7 +170,9 @@ export function App() {
                       ? "映射與啟用設定"
                       : page === "export-preview"
                         ? "匯出前核對"
-                        : "裝置與連線"}
+                        : page === "backups"
+                          ? "備份與還原"
+                          : "裝置與連線"}
                 </h1>
                 <p>
                   操作身分：{session.operator} ·{" "}
@@ -215,6 +218,13 @@ export function App() {
                 >
                   映射與啟用設定
                 </button>
+                <button
+                  className="secondary"
+                  onClick={() => setPage("backups")}
+                  aria-pressed={page === "backups"}
+                >
+                  備份與還原
+                </button>
               </nav>
             )}
             {session.capabilities.includes("reporting") && (
@@ -243,6 +253,8 @@ export function App() {
             ) : page === "mappings" &&
               session.capabilities.includes("admin") ? (
               <MappingManager key={session.sessionId} api={api} />
+            ) : page === "backups" && session.capabilities.includes("admin") ? (
+              <BackupPanel key={session.sessionId} api={api} />
             ) : session.capabilities.includes("admin") ? (
               <DeviceManager
                 key={session.sessionId}

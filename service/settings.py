@@ -12,6 +12,10 @@ class SettingsError(ValueError):
     """Invalid runtime configuration, with no sensitive values in the message."""
 
 
+def same_share_name(source: PureWindowsPath, backup: PureWindowsPath) -> bool:
+    return source.drive.split("\\")[-1].casefold() == backup.drive.split("\\")[-1].casefold()
+
+
 def _production_host(host: str, *, remote: bool) -> None:
     host = host.casefold().rstrip(".")
     if host == "localhost" or any(host == domain or host.endswith("." + domain)
@@ -60,13 +64,15 @@ class Settings:
     synthetic_enabled: bool = False
     synthetic_dbf_enabled: bool = False
     scan_from_date: date | None = None
+    backup_enabled: bool = False
+    synthetic_backup_enabled: bool = False
 
     @classmethod
     def from_environment(cls, environment: Mapping[str, str]) -> "Settings":
         state = _path(environment, "STATE_DIR", unc=False)
         source = _path(environment, "HIS_SOURCE_PATH", unc=True)
         backup = _path(environment, "BACKUP_ROOT", unc=True)
-        if source.drive.split("\\")[-1].casefold() == backup.drive.split("\\")[-1].casefold():
+        if same_share_name(source, backup):
             raise SettingsError("HIS and backup must use different SMB share names")
         mode = environment.get("CLINIC_REPORTER_ENV", "development")
         if mode not in ("development", "production"):
@@ -78,6 +84,12 @@ class Settings:
         if synthetic not in ("true", "false") or (mode == "production" and synthetic == "true"):
             raise SettingsError("Synthetic fixtures are allowed only in explicit development mode")
         dbf = environment.get("CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED", "false")
+        backup_enabled = environment.get("CLINIC_REPORTER_BACKUP_ENABLED", "false")
+        synthetic_backup = environment.get("CLINIC_REPORTER_SYNTHETIC_BACKUP_ENABLED", "false")
+        if backup_enabled not in ("true", "false") or synthetic_backup not in ("true", "false"):
+            raise SettingsError("Backup switches must be true or false")
+        if synthetic_backup == "true" and (mode != "development" or synthetic != "true" or backup_enabled != "true"):
+            raise SettingsError("Synthetic backups require enabled development synthetic mode")
         scan_from = None
         if dbf not in ("true", "false") or (dbf == "true" and (mode != "development" or synthetic != "true")):
             raise SettingsError("Synthetic DBF scans require explicit development synthetic mode")
@@ -118,4 +130,6 @@ class Settings:
             synthetic == "true",
             dbf == "true",
             scan_from,
+            backup_enabled == "true",
+            synthetic_backup == "true",
         )

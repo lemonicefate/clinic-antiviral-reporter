@@ -20,6 +20,7 @@ from service.reporting import BulkLotView
 from service.scanner import Scanner, ScanView
 from service.mappings import MappingView, register_mapping_routes
 from service.export_preview import register_export_routes
+from service.backups import Backups, BackupView, register_backup_routes
 
 
 class Command(BaseModel):
@@ -82,19 +83,22 @@ class AuditView(BaseModel):
 
 # requestId identifies the original command, even when a caller accidentally
 # retries it on another mutation route. Document every possible replay shape.
-MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView | BulkLotView | ScanView | MappingView
+MutationResult = SessionView | PairingView | DeviceView | RefreshView | CaseView | BulkLotView | ScanView | MappingView | BackupView
 
 
-def create_app(settings: Settings) -> FastAPI:
+def create_app(settings: Settings, tls_files: tuple[Path, Path] | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.store = Store(Path(settings.state_dir))
         app.state.scanner = Scanner(app.state.store, settings)
+        app.state.backups = Backups(app.state.store, settings, tls_files)
         try:
             app.state.scanner.start()
+            app.state.backups.start()
             yield
         finally:
             app.state.scanner.close()
+            app.state.backups.close()
             app.state.store.close()
 
     app = FastAPI(title="Clinic Antiviral Reporter", version="1.0.0", lifespan=lifespan,
@@ -272,4 +276,5 @@ def create_app(settings: Settings) -> FastAPI:
     register_case_routes(app, settings, active_session, MutationResult)
     register_mapping_routes(app, active_session, MutationResult)
     register_export_routes(app, settings, active_session, MutationResult)
+    register_backup_routes(app, active_session, MutationResult)
     return app

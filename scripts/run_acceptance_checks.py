@@ -10,11 +10,12 @@ import time
 from urllib.request import ProxyHandler, Request, build_opener
 
 
-def run_checks(dbf: bool = False, scripts: tuple[str, ...] | None = None) -> None:
+def run_checks(dbf: bool = False, scripts: tuple[str, ...] | None = None, backups: bool = False) -> None:
     repo = Path(__file__).resolve().parents[1]
     temporary = tempfile.TemporaryDirectory(prefix="clinic-synthetic-e2e-")
     with temporary as directory:
-        environment = dict(os.environ, LOCALAPPDATA=directory, CLINIC_ACCEPTANCE_DBF="true" if dbf else "false")
+        environment = dict(os.environ, LOCALAPPDATA=directory, CLINIC_ACCEPTANCE_DBF="true" if dbf else "false",
+                           CLINIC_ACCEPTANCE_BACKUP="true" if backups else "false")
         process = subprocess.Popen([sys.executable, "-m", "scripts.acceptance_environment"],
                                    cwd=repo, env=environment, stdout=subprocess.DEVNULL,
                                    stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -69,3 +70,4 @@ def run_checks(dbf: bool = False, scripts: tuple[str, ...] | None = None) -> Non
 if __name__ == "__main__":
     run_checks()
     run_checks(dbf=True)
+    run_checks(backups=True, scripts=("backups.cjs",))

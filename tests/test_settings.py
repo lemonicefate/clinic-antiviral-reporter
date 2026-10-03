@@ -4,6 +4,19 @@ from service.settings import Settings, SettingsError
 
 
 class SettingsTest(unittest.TestCase):
+    def test_synthetic_backups_require_explicit_safe_mode(self):
+        self.assertFalse(Settings.from_environment(self.environment()).backup_enabled)
+        for extra in ({}, {"CLINIC_REPORTER_BACKUP_ENABLED": "true"},
+                      {"CLINIC_REPORTER_BACKUP_ENABLED": "yes"},
+                      {"CLINIC_REPORTER_BACKUP_ENABLED": "true", "CLINIC_REPORTER_ENV": "production"}):
+            with self.subTest(extra=extra), self.assertRaises(SettingsError):
+                Settings.from_environment(self.environment() | {"CLINIC_REPORTER_SYNTHETIC_BACKUP_ENABLED": "true"} | extra)
+        valid = Settings.from_environment(self.environment() | {
+            "CLINIC_REPORTER_SYNTHETIC_ENABLED": "true", "CLINIC_REPORTER_BACKUP_ENABLED": "true",
+            "CLINIC_REPORTER_SYNTHETIC_BACKUP_ENABLED": "true"})
+        self.assertTrue(valid.backup_enabled)
+        self.assertTrue(valid.synthetic_backup_enabled)
+
     def test_synthetic_dbf_requires_development_but_range_is_configured_through_api(self):
         env = self.environment() | {"CLINIC_REPORTER_SYNTHETIC_DBF_ENABLED": "true"}
         for extra in ({},

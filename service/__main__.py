@@ -42,7 +42,7 @@ def main() -> None:
             initialize_administrator(settings, args.name, credential)
             print("Initial administrator provisioned. Device credential was not printed or logged.")
         else:
-            uvicorn.run(create_app(settings), host=settings.bind_host, port=settings.bind_port,
+            uvicorn.run(create_app(settings, tls_files=(args.cert, args.key)), host=settings.bind_host, port=settings.bind_port,
                         workers=1, proxy_headers=False, access_log=False,
                         ssl_certfile=str(args.cert), ssl_keyfile=str(args.key))
     except (SettingsError, ValueError, RuntimeError) as error:

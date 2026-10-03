@@ -67,6 +67,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Createsession"
@@ -359,6 +362,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Createpairing"
@@ -505,6 +511,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Revokedevice"
@@ -603,6 +612,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Refreshsyntheticorders"
@@ -941,6 +953,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Savereason"
@@ -1121,6 +1136,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Savedispensing"
@@ -1305,6 +1323,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Setcaseexclusion"
@@ -1403,6 +1424,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Applybulklot"
@@ -1577,6 +1601,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Reviewsource"
@@ -1737,6 +1764,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Requestscan"
@@ -1915,6 +1945,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Completeoutsidesystem"
@@ -2073,6 +2106,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Savemapping"
@@ -2367,6 +2403,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
                     }
                   ],
                   "title": "Response Createexport"
@@ -2456,6 +2495,169 @@
           }
         }
       }
+    },
+    "/api/v1/backups/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "getBackupStatus",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups": {
+      "post": {
+        "summary": "Backup",
+        "operationId": "requestBackup",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ScanView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MappingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackupView"
+                    }
+                  ],
+                  "title": "Response Requestbackup"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2498,6 +2700,159 @@
           "changes"
         ],
         "title": "AuditView"
+      },
+      "BackupCommand": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "reason"
+        ],
+        "title": "BackupCommand"
+      },
+      "BackupView": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "idle",
+              "queued",
+              "running",
+              "ready",
+              "failed",
+              "interrupted"
+            ],
+            "title": "Status"
+          },
+          "backupId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backupid"
+          },
+          "lastSuccessfulAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastsuccessfulat"
+          },
+          "lastSnapshotAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastsnapshotat"
+          },
+          "lastFailureAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastfailureat"
+          },
+          "diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnostic"
+          },
+          "rpoBreached": {
+            "type": "boolean",
+            "title": "Rpobreached"
+          },
+          "rpoSeconds": {
+            "type": "integer",
+            "const": 3600,
+            "title": "Rposeconds",
+            "default": 3600
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "title": "Intervalseconds"
+          },
+          "destinationKind": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "local_synthetic",
+              "configured_share"
+            ],
+            "title": "Destinationkind"
+          },
+          "deploymentVerified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Deploymentverified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision",
+          "enabled",
+          "status",
+          "backupId",
+          "lastSuccessfulAt",
+          "lastSnapshotAt",
+          "lastFailureAt",
+          "diagnostic",
+          "rpoBreached",
+          "intervalSeconds",
+          "destinationKind"
+        ],
+        "title": "BackupView"
       },
       "BulkCaseRevision": {
         "properties": {
