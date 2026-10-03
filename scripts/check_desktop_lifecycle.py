@@ -69,7 +69,7 @@ def check(executable: Path, installed_startup: bool = False) -> None:
         assert item is not None, "Native menu item missing: " + label
         user32.PostMessageW(hwnd, 0x0111, item, 0)  # Same command as a native menu click.
 
-    def windows(pid):
+    def windows(pid, visible=True):
         found = []
         @callback_type
         def collect(hwnd, _):
@@ -77,7 +77,7 @@ def check(executable: Path, installed_startup: bool = False) -> None:
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
             title = ctypes.create_unicode_buffer(256)
             user32.GetWindowTextW(hwnd, title, len(title))
-            if owner.value == pid and title.value == "公費抗病毒藥劑回報" and user32.IsWindowVisible(hwnd):
+            if owner.value == pid and title.value == "公費抗病毒藥劑回報" and (not visible or user32.IsWindowVisible(hwnd)):
                 found.append(hwnd)
             return True
         user32.EnumWindows(collect, 0)
@@ -118,7 +118,8 @@ def check(executable: Path, installed_startup: bool = False) -> None:
         menu_command(hwnd, "結束回報工具")
         assert process.wait(timeout=10) == 0, "Explicit quit failed"
         process = launch("--autostart")
-        time.sleep(2)
+        wait_for(lambda: any(user32.GetMenu(hwnd) for hwnd in windows(process.pid, visible=False)),
+                 "Hidden startup did not create its native window/menu")
         assert process.poll() is None and not windows(process.pid), "Login startup must remain in the tray"
         duplicate = launch("--autostart")
         assert duplicate.wait(timeout=10) == 0

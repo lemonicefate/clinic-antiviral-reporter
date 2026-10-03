@@ -6,6 +6,10 @@ use tauri::{
     App, AppHandle, Manager, WindowEvent,
 };
 use crate::startup;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static READY: AtomicBool = AtomicBool::new(false);
+static SHOW_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 pub fn show(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -17,7 +21,13 @@ pub fn show(app: &AppHandle) {
 
 pub fn show_for_launch(app: &AppHandle, arguments: impl Iterator<Item = String>) {
     if !arguments.into_iter().any(|argument| argument == "--autostart") {
-        show(app);
+        // Single-instance messages can arrive during WebView initialization,
+        // before Tauri has registered the main window. Retain that activation.
+        SHOW_REQUESTED.store(true, Ordering::SeqCst);
+        if READY.load(Ordering::SeqCst) {
+            SHOW_REQUESTED.store(false, Ordering::SeqCst);
+            show(app);
+        }
     }
 }
 
@@ -64,7 +74,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         .build(app)?;
+    READY.store(true, Ordering::SeqCst);
     show_for_launch(app.handle(), std::env::args());
+    if SHOW_REQUESTED.swap(false, Ordering::SeqCst) {
+        show(app.handle());
+    }
     Ok(())
 }
 

@@ -50,6 +50,11 @@ The reinstall regression also seeds a retained disabled preference with a stale
 matching Run command (representing a prior removal failure), and verifies that
 reinstall removes it. Preference-save failures leave Run untouched; later Run
 failures show an error/readback and installer failures return a nonzero exit code.
+An intermittent hidden-startup activation failure prompted a follow-up: activation
+requests received before main-window readiness are retained until setup completes,
+and the test waits for the actual hidden window/menu instead of sleeping two
+seconds. The full install/lifecycle/reinstall/uninstall sequence then passed three
+consecutive runs. This is bounded regression evidence, not proof of every timing.
 80 Python tests, 4 Rust tests and mypy passed. Native tray left/right clicks and an
 actual Windows sign-out/sign-in remain manual checks; the native automation checks
 the application menu and process/window behavior. The available GUI automation
