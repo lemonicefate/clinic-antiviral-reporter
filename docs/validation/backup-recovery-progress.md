@@ -164,9 +164,9 @@ requires reconciliation of intervening history before production cutover.
 
 ## Automated and remaining evidence
 
-Validated on 2026-10-03: 80 Python unittest tests, 8 Vitest tests, all 10 real
-HTTPS browser journeys, mypy (24 source files), TypeScript/Vite build, and Windows
-Tauri debug build passed. OpenAPI/TypeScript clients were regenerated. This is
+The current recheck on 2026-10-03 passes 107 Python unittest tests, 11 Vitest tests,
+all 10 real HTTPS browser journeys, mypy (32 source files), the TypeScript/Vite build,
+and the Windows Tauri debug build. OpenAPI/TypeScript clients were regenerated. This is
 software and local synthetic evidence, not off-host deployment acceptance.
 
 `tests/test_backups.py` covers scheduled/manual runs, retry and audit atomicity,

@@ -180,8 +180,8 @@ until the approved retention process permits disposal.
 Repository tests prove deterministic bundle generation, fixed wrapper hash,
 secret-free XML, absolute paths, no replacement, and service command construction.
 The local acceptance run verifies the official wrapper hash, generates a bundle
-outside Git and includes the pre-created log directory. The full Python discovery
-run passes 94 tests and mypy passes 30 source files. Actual SCM installation, reboot
+outside Git and includes the pre-created log directory. The current full Python
+discovery run passes 107 tests and mypy passes 32 source files. Actual SCM installation, reboot
 autostart, account rights, certificate
 trust, firewall scope, device fleet and off-host restore must be performed on the
 clinic environment and remain tracked by #25 and `docs/validation/m0-gates.md`.

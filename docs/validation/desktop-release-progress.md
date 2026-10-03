@@ -135,9 +135,9 @@ an existing clinic installation.
 
 ## Automated evidence and remaining work
 
-Local verification on 2026-10-03: Python discovery **90 passed**, Vitest **11
-passed**, browser Playwright **2 passed**, Rust **5 passed**, frontend build passed,
-and mypy passed for 29 source files. All 10 existing real-HTTPS business journeys
+The current recheck on 2026-10-03 passes Python discovery **107**, Vitest **11**,
+browser Playwright **2**, Rust **5**, the frontend build, and mypy for 32 source
+files. All 10 existing real-HTTPS business journeys
 and the native lifecycle harness also passed. The first Python invocation used the system
 interpreter without dependencies; the successful run used the repository's Python
 3.12 virtual environment. Browser tests mock native IPC; they are separate from
@@ -180,9 +180,10 @@ the tests. This approval covers the corrected paths, not production deployment.
 The reproducible central Windows-service startup/recovery and client deployment
 procedure is now in [Windows deployment](../deployment/windows-service-and-client.md).
 Its generator pins and verifies WinSW, uses explicit versioned paths and emits no
-account password. Its 4 focused tests bring full Python discovery to 94 passing
-tests; an official-wrapper bundle was also generated outside Git. Actual Windows
-SCM/reboot/account/firewall evidence belongs to #25. Tray and real Windows sign-in checks remain in
+account password. The current full Python discovery has 107 passing tests and mypy
+covers 32 source files; an official-wrapper bundle was also generated outside Git.
+Actual Windows SCM/reboot/account/firewall evidence belongs to #25. Tray and real
+Windows sign-in checks remain in
 [desktop lifecycle progress](desktop-lifecycle-progress.md); a fresh temporary
 manual client was prepared and launched after the automated installer tests.
 Its path, hash and PID are in the documented local metadata. Actual clinic account,
