@@ -99,39 +99,47 @@ class MigrationAcceptanceTest(unittest.TestCase):
                     self.fail("Future schema should not start")
             self.assertEqual(path.read_bytes(), original)
 
-    def test_version_three_source_snapshot_survives_reason_migration(self):
-        with tempfile.TemporaryDirectory() as directory:
-            credential = secrets.token_urlsafe(32)
-            case_id = "11111111-1111-4111-8111-111111111111"
-            facts = {"PD011M1.NUM": "SYN-OLD", "PD011M1.NAME": "Synthetic old patient",
-                     "PD011M1.BIRTH": "1990-01-01", "CH011M1.DOC": "SYN-DR-A",
-                     "CH011M1.SDATE": "2026-10-02", "CH012M1.SYS_2015": "SYN-OLD-ORDER",
-                     "CH012M1.USE_TAMT": "10", "CH012M1.RELKEY": "SYN RAW SPACE"}
-            with sqlite3.connect(Path(directory) / "central.sqlite3") as db:
-                db.executescript("""
-                    CREATE TABLE devices(id TEXT PRIMARY KEY,name TEXT,credential_hash TEXT UNIQUE,
-                        capabilities TEXT,revision INTEGER,revoked INTEGER);
-                    CREATE TABLE sessions(id TEXT PRIMARY KEY,device_id TEXT,operator TEXT,expires_at REAL);
-                    CREATE TABLE commands(actor TEXT,request_id TEXT,result TEXT,PRIMARY KEY(actor,request_id));
-                    CREATE TABLE audit_events(sequence INTEGER PRIMARY KEY,kind TEXT,device_id TEXT,
-                        operator TEXT,occurred_at REAL,changes TEXT);
-                    CREATE TABLE pairings(code_hash TEXT PRIMARY KEY,capabilities TEXT,expires_at REAL,used INTEGER,issuer TEXT);
-                    CREATE TABLE ingestion_state(id TEXT PRIMARY KEY,revision INTEGER,anchor_date TEXT);
-                    CREATE TABLE report_cases(id TEXT PRIMARY KEY,source_key TEXT UNIQUE,revision INTEGER,reported_quantity INTEGER);
-                    CREATE TABLE source_snapshots(sequence INTEGER PRIMARY KEY,case_id TEXT,captured_at REAL,facts TEXT);
-                    CREATE INDEX snapshots_case ON source_snapshots(case_id,sequence);
-                    PRAGMA user_version=3;
-                """)
-                db.execute("INSERT INTO devices VALUES (?,?,?,?,1,0)", ("v3-admin", "Synthetic v3 admin",
-                           hashlib.sha256(credential.encode()).hexdigest(), '["admin"]'))
-                db.execute("INSERT INTO sessions VALUES (?,?,?,?)", ("v3-session", "v3-admin", "SYN-DR-A", 9999999999))
-                db.execute("INSERT INTO report_cases VALUES (?,?,1,10)", (case_id, "synthetic-v1:SYN-OLD-ORDER"))
-                db.execute("INSERT INTO source_snapshots VALUES (1,?,1,?)", (case_id, json.dumps(facts)))
-            db.close()
-            with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
-                detail = client.get(f"/api/v1/cases/{case_id}", headers={
-                    "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
-                self.assertEqual(detail["snapshots"][0]["raw"], facts)
-                self.assertEqual(detail["revision"], 1)
-                self.assertEqual(detail["reportedQuantity"], 10)
-                self.assertIsNone(detail["reason"])
+    def test_version_three_and_four_history_survives_reporting_migration(self):
+        for version in (3, 4):
+            with tempfile.TemporaryDirectory() as directory:
+                credential = secrets.token_urlsafe(32)
+                case_id = "11111111-1111-4111-8111-111111111111"
+                facts = {"PD011M1.NUM": "SYN-OLD", "PD011M1.NAME": "Synthetic old patient",
+                         "PD011M1.BIRTH": "1990-01-01", "CH011M1.DOC": "SYN-DR-A",
+                         "CH011M1.SDATE": "2026-10-02", "CH012M1.SYS_2015": "SYN-OLD-ORDER",
+                         "CH012M1.USE_TAMT": "10", "CH012M1.RELKEY": "SYN RAW SPACE"}
+                with sqlite3.connect(Path(directory) / "central.sqlite3") as db:
+                    db.executescript("""
+                        CREATE TABLE devices(id TEXT PRIMARY KEY,name TEXT,credential_hash TEXT UNIQUE,
+                            capabilities TEXT,revision INTEGER,revoked INTEGER);
+                        CREATE TABLE sessions(id TEXT PRIMARY KEY,device_id TEXT,operator TEXT,expires_at REAL);
+                        CREATE TABLE commands(actor TEXT,request_id TEXT,result TEXT,PRIMARY KEY(actor,request_id));
+                        CREATE TABLE audit_events(sequence INTEGER PRIMARY KEY,kind TEXT,device_id TEXT,
+                            operator TEXT,occurred_at REAL,changes TEXT);
+                        CREATE TABLE pairings(code_hash TEXT PRIMARY KEY,capabilities TEXT,expires_at REAL,used INTEGER,issuer TEXT);
+                        CREATE TABLE ingestion_state(id TEXT PRIMARY KEY,revision INTEGER,anchor_date TEXT);
+                        CREATE TABLE report_cases(id TEXT PRIMARY KEY,source_key TEXT UNIQUE,revision INTEGER,reported_quantity INTEGER);
+                        CREATE TABLE source_snapshots(sequence INTEGER PRIMARY KEY,case_id TEXT,captured_at REAL,facts TEXT);
+                        CREATE INDEX snapshots_case ON source_snapshots(case_id,sequence);
+                        PRAGMA user_version=3;
+                    """)
+                    db.execute("INSERT INTO devices VALUES (?,?,?,?,1,0)", ("v3-admin", "Synthetic v3 admin",
+                               hashlib.sha256(credential.encode()).hexdigest(), '["admin"]'))
+                    db.execute("INSERT INTO sessions VALUES (?,?,?,?)", ("v3-session", "v3-admin", "SYN-DR-A", 9999999999))
+                    db.execute("INSERT INTO report_cases VALUES (?,?,1,10)", (case_id, "synthetic-v1:SYN-OLD-ORDER"))
+                    db.execute("INSERT INTO source_snapshots VALUES (1,?,1,?)", (case_id, json.dumps(facts)))
+                if version == 4:
+                    db.execute("ALTER TABLE report_cases ADD COLUMN reason TEXT")
+                    db.execute("UPDATE report_cases SET reason=?", ("23:未滿5歲及65歲以上之類流感患者",))
+                    db.execute("PRAGMA user_version=4")
+                    db.commit()
+                db.close()
+                with TestClient(create_app(self.settings(directory)), base_url="https://testserver") as client:
+                    detail = client.get(f"/api/v1/cases/{case_id}", headers={
+                        "Authorization": "Bearer " + credential, "X-Session-Id": "v3-session"}).json()
+                    self.assertEqual(detail["snapshots"][0]["raw"], facts)
+                    self.assertEqual(detail["revision"], 1)
+                    self.assertEqual(detail["reportedQuantity"], 10)
+                    self.assertEqual(detail["reason"], "23:未滿5歲及65歲以上之類流感患者" if version == 4 else None)
+                    self.assertEqual(detail["lots"], [])
+                    self.assertFalse(detail["excluded"])

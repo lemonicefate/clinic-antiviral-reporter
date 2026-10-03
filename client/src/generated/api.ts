@@ -208,6 +208,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cases/{case_id}/dispensing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dispensing */
+        post: operations["saveDispensing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["getCaseHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}/exclusion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exclusion */
+        post: operations["setCaseExclusion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/bulk-lot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Lot */
+        post: operations["applyBulkLot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -228,6 +296,37 @@ export interface components {
             changes: {
                 [key: string]: unknown;
             };
+        };
+        /** BulkCaseRevision */
+        BulkCaseRevision: {
+            /**
+             * Caseid
+             * Format: uuid
+             */
+            caseId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+        };
+        /** BulkLot */
+        BulkLot: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Lot */
+            lot: string;
+            /** Cases */
+            cases: components["schemas"]["BulkCaseRevision"][];
+            /** Replaceconfirmed */
+            replaceConfirmed: boolean;
+        };
+        /** BulkLotView */
+        BulkLotView: {
+            /** Appliedcases */
+            appliedCases: components["schemas"]["CaseView"][];
         };
         /** CaseDetail */
         CaseDetail: {
@@ -268,9 +367,29 @@ export interface components {
              * @default awaiting_reason
              * @enum {string}
              */
-            status: "awaiting_reason" | "awaiting_reconciliation";
+            status: "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "excluded";
             /** Reason */
             reason?: string | null;
+            /** Lots */
+            lots?: components["schemas"]["LotAllocation"][];
+            /**
+             * Excluded
+             * @default false
+             */
+            excluded: boolean;
+            /** Exclusionreason */
+            exclusionReason?: string | null;
+            /**
+             * Internallycomplete
+             * @default false
+             */
+            internallyComplete: boolean;
+            /**
+             * Exporteligible
+             * @default false
+             * @constant
+             */
+            exportEligible: false;
             /**
              * Synthetic
              * @default true
@@ -285,6 +404,23 @@ export interface components {
             liveIdentityVerified: false;
             /** Snapshots */
             snapshots: components["schemas"]["SnapshotView"][];
+        };
+        /** CaseHistoryEvent */
+        CaseHistoryEvent: {
+            /** Sequence */
+            sequence: number;
+            /** Kind */
+            kind: string;
+            /** Deviceid */
+            deviceId: string;
+            /** Operator */
+            operator: string;
+            /** Occurredat */
+            occurredAt: number;
+            /** Changes */
+            changes: {
+                [key: string]: unknown;
+            };
         };
         /** CaseView */
         CaseView: {
@@ -325,9 +461,29 @@ export interface components {
              * @default awaiting_reason
              * @enum {string}
              */
-            status: "awaiting_reason" | "awaiting_reconciliation";
+            status: "awaiting_reason" | "awaiting_reconciliation" | "internally_complete" | "excluded";
             /** Reason */
             reason?: string | null;
+            /** Lots */
+            lots?: components["schemas"]["LotAllocation"][];
+            /**
+             * Excluded
+             * @default false
+             */
+            excluded: boolean;
+            /** Exclusionreason */
+            exclusionReason?: string | null;
+            /**
+             * Internallycomplete
+             * @default false
+             */
+            internallyComplete: boolean;
+            /**
+             * Exporteligible
+             * @default false
+             * @constant
+             */
+            exportEligible: false;
             /**
              * Synthetic
              * @default true
@@ -398,6 +554,13 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** LotAllocation */
+        LotAllocation: {
+            /** Lot */
+            lot: string;
+            /** Quantity */
+            quantity: number;
         };
         /** PairingView */
         PairingView: {
@@ -475,6 +638,25 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** SaveDispensing */
+        SaveDispensing: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Reportedquantity */
+            reportedQuantity: number;
+            /** Lots */
+            lots: components["schemas"]["LotAllocation"][];
+            /**
+             * Changereason
+             * @default
+             */
+            changeReason: string;
+        };
         /** SaveReason */
         SaveReason: {
             /**
@@ -503,6 +685,20 @@ export interface components {
             revision: number;
             /** Expiresat */
             expiresAt: number;
+        };
+        /** SetExclusion */
+        SetExclusion: {
+            /**
+             * Requestid
+             * Format: uuid
+             */
+            requestId: string;
+            /** Expectedrevision */
+            expectedRevision: number;
+            /** Excluded */
+            excluded: boolean;
+            /** Reason */
+            reason: string;
         };
         /** SnapshotView */
         SnapshotView: {
@@ -558,7 +754,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
                 };
             };
             /** @description Validation Error */
@@ -690,7 +886,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
                 };
             };
             /** @description Validation Error */
@@ -761,7 +957,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
                 };
             };
             /** @description Validation Error */
@@ -797,7 +993,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
                 };
             };
             /** @description Validation Error */
@@ -816,6 +1012,10 @@ export interface operations {
             query?: {
                 physician?: string | null;
                 chart?: string | null;
+                caseStatus?: "active" | "all" | "unfinished" | "excluded" | "awaiting_reason" | "awaiting_reconciliation" | "internally_complete";
+                dateFrom?: string | null;
+                dateTo?: string | null;
+                exception?: "all" | "duplicate" | "overdue" | "quantity_changed";
             };
             header?: {
                 authorization?: string | null;
@@ -902,7 +1102,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
                 };
             };
             /** @description Validation Error */
@@ -937,6 +1137,152 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saveDispensing: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDispensing"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCaseHistory: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseHistoryEvent"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setCaseExclusion: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetExclusion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    applyBulkLot: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-session-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkLot"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"] | components["schemas"]["PairingView"] | components["schemas"]["DeviceView"] | components["schemas"]["RefreshView"] | components["schemas"]["CaseView"] | components["schemas"]["BulkLotView"];
                 };
             };
             /** @description Validation Error */

@@ -46,6 +46,12 @@ class ReasonOptionsView(BaseModel):
     officialRulesVerified: Literal[False] = False
 
 
+class LotAllocation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    lot: str = Field(min_length=1, max_length=100, pattern=r"\S")
+    quantity: int = Field(gt=0, strict=True)
+
+
 class CaseView(BaseModel):
     caseId: str
     revision: int
@@ -60,8 +66,13 @@ class CaseView(BaseModel):
     material: str
     overdue: bool
     duplicateConcern: bool
-    status: Literal["awaiting_reason", "awaiting_reconciliation"] = "awaiting_reason"
+    status: Literal["awaiting_reason", "awaiting_reconciliation", "internally_complete", "excluded"] = "awaiting_reason"
     reason: str | None = None
+    lots: list[LotAllocation] = Field(default_factory=list)
+    excluded: bool = False
+    exclusionReason: str | None = None
+    internallyComplete: bool = False
+    exportEligible: Literal[False] = False
     synthetic: Literal[True] = True
     liveIdentityVerified: Literal[False] = False
 
@@ -114,6 +125,9 @@ def _case_rows(db):
 
 def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
     reporting_date = facts["CH011M1.SDATE"]
+    lots = json.loads(row["lots"])
+    complete = bool(row["reason"] and lots and sum(lot["quantity"] for lot in lots) == row["reported_quantity"])
+    excluded = bool(row["excluded"])
     return {
         "caseId": row["id"], "revision": row["revision"],
         "chartNumber": facts["PD011M1.NUM"], "patientName": facts["PD011M1.NAME"],
@@ -121,10 +135,13 @@ def _view(row, facts, duplicates: set[tuple[str, str]]) -> dict:
         "reportingDate": reporting_date, "sourceOrder": facts["CH012M1.SYS_2015"],
         "sourceQuantity": int(facts["CH012M1.USE_TAMT"]), "reportedQuantity": row["reported_quantity"],
         "material": "DDMTR2018090002:易剋冒膠囊(顆)",
-        "overdue": reporting_date < clinic_today().isoformat(),
+        "overdue": not excluded and reporting_date < clinic_today().isoformat(),
         "duplicateConcern": (facts["PD011M1.NUM"], reporting_date) in duplicates,
         "reason": row["reason"],
-        "status": "awaiting_reconciliation" if row["reason"] else "awaiting_reason",
+        "lots": lots, "excluded": excluded, "exclusionReason": row["exclusion_reason"],
+        "internallyComplete": complete and not excluded, "exportEligible": False,
+        "status": "excluded" if excluded else "internally_complete" if complete else
+                  "awaiting_reconciliation" if row["reason"] else "awaiting_reason",
     }
 
 
@@ -183,10 +200,15 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
     @app.get("/api/v1/cases", response_model=QueueView, operation_id="listCases")
     def queue(request: Request, physician: Annotated[str | None, Query(max_length=100)] = None,
               chart: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
+              caseStatus: Literal["active", "all", "unfinished", "excluded", "awaiting_reason", "awaiting_reconciliation", "internally_complete"] = "active",
+              dateFrom: date | None = None, dateTo: date | None = None,
+              exception: Literal["all", "duplicate", "overdue", "quantity_changed"] = "all",
               authorization: Annotated[str | None, Header()] = None,
               x_session_id: Annotated[str | None, Header()] = None):
         with request.app.state.store.transaction() as db:
             _, session = permitted(db, authorization, x_session_id)
+            if dateFrom is not None and dateTo is not None and dateFrom > dateTo:
+                raise HTTPException(422, "Date range is reversed")
             selected = session["operator"] if physician is None else physician
             rows = _case_rows(db)
             duplicates = _duplicates(rows)
@@ -198,8 +220,17 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
             items.sort(key=lambda item: (not item["overdue"],
                        -date.fromisoformat(item["reportingDate"]).toordinal(), item["sourceOrder"]))
             state = db.execute("SELECT revision FROM ingestion_state WHERE id='synthetic-v1'").fetchone()
+            items = [item for item in items if
+                     (caseStatus == "all" or (caseStatus == "active" and not item["excluded"]) or
+                      (caseStatus == "unfinished" and not item["excluded"] and not item["internallyComplete"]) or
+                      caseStatus == item["status"]) and
+                     (dateFrom is None or item["reportingDate"] >= dateFrom.isoformat()) and
+                     (dateTo is None or item["reportingDate"] <= dateTo.isoformat()) and
+                     (exception == "all" or (exception == "duplicate" and item["duplicateConcern"]) or
+                      (exception == "overdue" and item["overdue"]) or
+                      (exception == "quantity_changed" and item["sourceQuantity"] != item["reportedQuantity"]))]
             return {"items": items, "total": len(items), "overdue": sum(item["overdue"] for item in items),
-                    "awaitingReason": sum(item["reason"] is None for item in items),
+                    "awaitingReason": sum(item["reason"] is None and not item["excluded"] for item in items),
                     "physicians": sorted({facts["CH011M1.DOC"] for _, facts in rows}), "physician": selected,
                     "syntheticRefreshEnabled": settings.synthetic_enabled and settings.environment == "development",
                     "refreshRevision": state["revision"] if state else 0}
@@ -257,3 +288,6 @@ def register_case_routes(app: FastAPI, settings: Settings, active_session: Calla
                          "raw": json.loads(snapshot["facts"])} for snapshot in db.execute(
                              "SELECT * FROM source_snapshots WHERE case_id=? ORDER BY sequence", (str(case_id),))]}
             raise HTTPException(404, "Case not found")
+
+    from service.reporting import register_reporting_routes
+    register_reporting_routes(app, permitted, mutation_result)

@@ -65,7 +65,7 @@ settings = Settings.from_environment({
     'CLINIC_REPORTER_EXPORT_ENABLED': 'false',
     'CLINIC_REPORTER_SYNTHETIC_ENABLED': 'true',
 })
-identities = {'admin': {'active': secrets.token_urlsafe(32)}, 'doctor': {}, 'new': {}}
+identities = {'admin': {'active': secrets.token_urlsafe(32)}, 'doctor': {}, 'reporting': {}, 'new': {}}
 initialize_administrator(settings, '測試管理電腦 A', identities['admin']['active'])
 opener = build_opener(ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context(cafile=str(RUN/'tls.crt'))))
 server = None
@@ -121,6 +121,13 @@ enrolled = call('/api/v1/devices/enroll', 'POST', {
     'requestId': str(uuid4()), 'expectedRevision': 0, 'pairingCode': grant['pairingCode'],
     'name': '測試醫師電腦 B', 'credential': identities['doctor']['active']})
 assert enrolled['status'] == 200
+reporting_grant = json.loads(call('/api/v1/pairings', 'POST', {
+    'requestId': str(uuid4()), 'expectedRevision': 0, 'capabilities': ['reporting']},
+    identities['admin']['active'], admin_session['sessionId'])['body'])
+identities['reporting']['active'] = secrets.token_urlsafe(32)
+assert call('/api/v1/devices/enroll', 'POST', {
+    'requestId': str(uuid4()), 'expectedRevision': 0, 'pairingCode': reporting_grant['pairingCode'],
+    'name': '測試回報電腦 D', 'credential': identities['reporting']['active']})['status'] == 200
 seeded = call('/api/v1/synthetic/refresh', 'POST', {
     'requestId': str(uuid4()), 'expectedRevision': 0}, identities['admin']['active'], admin_session['sessionId'])
 assert seeded['status'] == 200
@@ -134,6 +141,7 @@ PAGE = '''<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>本�
 <a class="entry" href="/app?profile=admin" target="_blank">A：管理者</a>
 <a class="entry" href="/app?profile=doctor" target="_blank">B：醫師</a>
 <a class="entry" href="/app?profile=new" target="_blank">C：尚未配對</a>
+<a class="entry" href="/app?profile=reporting" target="_blank">D：回報管理</a>
 <p>A、B 的位址和通行證已準備好。操作身分請填 SYN-DR-A，保留「使用已配對裝置」，按「連線」。A 請再點「案件工作清單」；B 會直接顯示清單。</p></section>
 <section><h2>照這個順序試</h2><ol>
 <li><strong>預設清單：</strong>B 輸入 SYN-DR-A 連線，應有 3 案；跨日未完成 1 案，病歷號 SYN-0002 優先。SYN-0001 應有 2 案，各有不同醫令及同日多筆提醒。</li>
@@ -181,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send({},404)
             bridge = '''<script>window.__TAURI_INTERNALS__={invoke:async function(command,args){const r=await fetch('/invoke',{method:'POST',headers:{'Content-Type':'application/json','X-Acceptance':TOKEN},body:JSON.stringify({profile:PROFILE,command,args:args||{}})});const data=await r.json();if(!r.ok)throw new Error(data.error||'測試中央無法連線');return data;}};</script>'''.replace('TOKEN',json.dumps(TOKEN)).replace('PROFILE',json.dumps(profile))
             html = (WEB/'index.html').read_text(encoding='utf-8').replace('<head>', '<head>'+bridge)
-            banner = '<div style="padding:8px;background:#fff1bf;text-align:center">假資料驗收 · '+{'admin':'A 管理者','doctor':'B 醫師','new':'C 新裝置'}[profile]+' · <a href="/" target="_blank">回驗收說明／停機控制</a></div>'
+            banner = '<div style="padding:8px;background:#fff1bf;text-align:center">假資料驗收 · '+{'admin':'A 管理者','doctor':'B 醫師','reporting':'D 回報管理','new':'C 新裝置'}[profile]+' · <a href="/" target="_blank">回驗收說明／停機控制</a></div>'
             return self.send(html.replace('<body>','<body>'+banner), mime='text/html; charset=utf-8')
         if parsed.path.startswith('/assets/'):
             path = (WEB/parsed.path.lstrip('/')).resolve()
@@ -223,7 +231,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = args['request']
                 path = req['path']
                 import re
-                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|cases|cases/[a-f0-9-]+|cases/[a-f0-9-]+/reason)',urlsplit(path).path):
+                if not re.fullmatch(r'/api/v1/(sessions|session|devices|pairings|audit|devices/enroll|devices/[a-f0-9-]+/revoke|synthetic/refresh|reason-options|cases|cases/bulk-lot|cases/[a-f0-9-]+|cases/[a-f0-9-]+/(reason|dispensing|exclusion|history))',urlsplit(path).path):
                     raise ValueError()
                 if req['method'] not in ('GET','POST'): raise ValueError()
                 body = req.get('body')

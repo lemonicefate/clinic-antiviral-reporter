@@ -4,6 +4,8 @@ Tauri 2 with React/TypeScript. The current workflow covers device pairing,
 operator attribution, administrator device management, and central outage handling.
 The next slice provides a synthetic physician queue, exact chart search, and
 explicit case detail selection and confirmed reason editing with conflict review.
+Reporting devices also receive date/status/exception filters, quantity and lot
+allocation editing, bulk same-lot replacement, exclusion/reinclusion and case history.
 Tray/startup behavior, signed installers, and updates remain pending.
 
 ## Development

@@ -138,3 +138,23 @@ Run `python -m scripts.run_acceptance_checks` after building the client for isol
 real-HTTPS/browser queue and two-client reason checks. The runner starts and stops
 only its own temporary synthetic service. Its bridge models native IPC and does
 not replace Windows deployment acceptance.
+
+## Dispensing and exclusions (schema v5)
+
+Reporting capability is required for quantity/lot changes, bulk lot replacement,
+exclusion/reinclusion and case history. Source quantities remain immutable.
+Positive integer lot quantities must sum exactly to actual quantity, which cannot
+exceed source quantity. Quantity changes and exclusion decisions require reasons.
+Bulk replacement requires confirmation and every selected case revision; any stale
+case or audit failure rolls back the entire batch. Later individual edits remain
+independent. No inventory inference is introduced.
+
+Queues support date, physician, exact chart, status and exception filters. Excluded
+cases leave default/unfinished views; explicit status filters retrieve them.
+Internally complete data is distinct from official export eligibility, still false.
+
+v5 adds lots, exclusion status and the latest decision reason. Historical decisions
+remain in audit. Tested v1/v2/v3/v4 upgrades retain source facts and medication reasons.
+Stop and retain complete state before upgrading. Pre-v5 binaries refuse v5: preserve
+it and deploy a compatible forward fix rather than deleting human decisions.
+The isolated acceptance runner now covers four real HTTPS browser journeys.

@@ -4,6 +4,8 @@ import { clinicApi, requireData } from "./api";
 import type { Session } from "./api";
 import type { components } from "./generated/api";
 import { ReasonEditor } from "./ReasonEditor";
+import { ReportingEditor } from "./ReportingEditor";
+import { BulkLotEditor } from "./BulkLotEditor";
 
 type Queue = components["schemas"]["QueueView"];
 type Detail = components["schemas"]["CaseDetail"];
@@ -15,7 +17,24 @@ export function CaseQueue({
   api: ReturnType<typeof clinicApi>;
   session: Session;
 }) {
-  const [physician, setPhysician] = useState(session.operator);
+  const reporting = session.capabilities.includes("reporting");
+  const initialPhysician = reporting ? "" : session.operator;
+  const [physician, setPhysician] = useState(initialPhysician);
+  const [caseStatus, setCaseStatus] = useState<
+    | "active"
+    | "all"
+    | "unfinished"
+    | "excluded"
+    | "awaiting_reason"
+    | "awaiting_reconciliation"
+    | "internally_complete"
+  >("active");
+  const [exception, setException] = useState<
+    "all" | "duplicate" | "overdue" | "quantity_changed"
+  >("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
   const [chart, setChart] = useState("");
   const [queue, setQueue] = useState<Queue>();
   const [detail, setDetail] = useState<Detail>();
@@ -30,7 +49,7 @@ export function CaseQueue({
   >(undefined);
 
   useEffect(() => {
-    void load(session.operator, "");
+    void load(initialPhysician, "");
     return () => {
       generation.current += 1;
       detailGeneration.current += 1;
@@ -44,6 +63,7 @@ export function CaseQueue({
     const current = ++generation.current;
     detailGeneration.current += 1;
     setDetail(undefined);
+    setSelected([]);
     setQueue(undefined);
     setStatus("");
     setBusy(true);
@@ -55,6 +75,14 @@ export function CaseQueue({
             query: {
               physician: selected,
               ...(exactChart ? { chart: exactChart } : {}),
+              ...(reporting
+                ? {
+                    caseStatus,
+                    exception,
+                    ...(dateFrom ? { dateFrom } : {}),
+                    ...(dateTo ? { dateTo } : {}),
+                  }
+                : {}),
             },
           },
         }),
@@ -139,7 +167,9 @@ export function CaseQueue({
 
   return (
     <section aria-labelledby="case-queue-title">
-      <h2 id="case-queue-title">醫師工作清單</h2>
+      <h2 id="case-queue-title">
+        {reporting ? "回報管理清單" : "醫師工作清單"}
+      </h2>
       <p className="notice">
         合成資料測試：非真實 HIS。來源鍵與編碼尚未完成真機驗證；正式匯出停用。
       </p>
@@ -178,6 +208,63 @@ export function CaseQueue({
             placeholder="例如 SYN-0001"
           />
         </label>
+        {reporting && (
+          <>
+            <label>
+              狀態篩選
+              <select
+                aria-label="狀態篩選"
+                value={caseStatus}
+                disabled={busy}
+                onChange={(e) =>
+                  setCaseStatus(e.target.value as typeof caseStatus)
+                }
+              >
+                <option value="active">未排除案件</option>
+                <option value="all">所有案件</option>
+                <option value="unfinished">尚未補齊</option>
+                <option value="awaiting_reason">待填理由</option>
+                <option value="awaiting_reconciliation">待核對批號</option>
+                <option value="internally_complete">內部資料已齊</option>
+                <option value="excluded">已排除</option>
+              </select>
+            </label>
+            <label>
+              異常篩選
+              <select
+                aria-label="異常篩選"
+                value={exception}
+                disabled={busy}
+                onChange={(e) =>
+                  setException(e.target.value as typeof exception)
+                }
+              >
+                <option value="all">全部</option>
+                <option value="duplicate">同日多筆</option>
+                <option value="overdue">跨日未完成</option>
+                <option value="quantity_changed">來源與實發量不同</option>
+              </select>
+            </label>
+            <label>
+              給藥日期起
+              <input
+                type="date"
+                value={dateFrom}
+                disabled={busy}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </label>
+            <label>
+              給藥日期迄
+              <input
+                type="date"
+                value={dateTo}
+                disabled={busy}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </label>
+          </>
+        )}
         <button disabled={busy} type="submit">
           查詢清單
         </button>
@@ -212,6 +299,7 @@ export function CaseQueue({
                 <caption>未完成案件；同日排列不代表開立先後</caption>
                 <thead>
                   <tr>
+                    {reporting && <th>選取</th>}
                     <th>病人／病歷號</th>
                     <th>給藥日期／醫師</th>
                     <th>來源醫令／數量</th>
@@ -222,6 +310,23 @@ export function CaseQueue({
                 <tbody>
                   {queue.items.map((item) => (
                     <tr key={item.caseId}>
+                      {reporting && (
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={"選取 " + item.sourceOrder}
+                            disabled={item.excluded}
+                            checked={selected.includes(item.caseId)}
+                            onChange={(e) =>
+                              setSelected(
+                                e.target.checked
+                                  ? [...selected, item.caseId]
+                                  : selected.filter((id) => id !== item.caseId),
+                              )
+                            }
+                          />
+                        </td>
+                      )}
                       <td>
                         <span>{item.patientName}</span>
                         <br />
@@ -250,9 +355,14 @@ export function CaseQueue({
                             <br />
                           </>
                         )}
-                        {item.status === "awaiting_reason"
-                          ? "待填理由"
-                          : "理由已填，待回報核對"}
+                        {
+                          {
+                            awaiting_reason: "待填理由",
+                            awaiting_reconciliation: "理由已填，待回報核對",
+                            internally_complete: "內部資料已齊；正式匯出停用",
+                            excluded: "已排除",
+                          }[item.status]
+                        }
                       </td>
                       <td>
                         <button onClick={() => void select(item.caseId)}>
@@ -264,6 +374,26 @@ export function CaseQueue({
                 </tbody>
               </table>
             </div>
+          )}
+          {reporting && selected.length > 0 && (
+            <BulkLotEditor
+              key={selected.join(",")}
+              api={api}
+              cases={queue.items.filter((item) =>
+                selected.includes(item.caseId),
+              )}
+              onSaved={() => {
+                const expected = generation.current + 1;
+                void load().then((ok) => {
+                  if (generation.current === expected)
+                    setStatus(
+                      ok
+                        ? "批次批號已儲存，清單已更新。"
+                        : "批次批號已儲存；請重新查詢清單。",
+                    );
+                });
+              }}
+            />
           )}
         </>
       )}
@@ -291,6 +421,25 @@ export function CaseQueue({
             </p>
           )}
           <p>目前理由：{detail.reason ?? "尚未填寫"}</p>
+          {reporting && (
+            <ReportingEditor
+              key={"reporting:" + detail.caseId + ":" + detail.revision}
+              api={api}
+              detail={detail}
+              onReload={setDetail}
+              onSaved={() => {
+                const expected = generation.current + 1;
+                void load().then((ok) => {
+                  if (generation.current === expected)
+                    setStatus(
+                      ok
+                        ? "回報核對已儲存，清單已更新。"
+                        : "回報核對已儲存；請重新查詢清單。",
+                    );
+                });
+              }}
+            />
+          )}
           {session.capabilities.some(
             (c) => c === "physician" || c === "reporting",
           ) && (

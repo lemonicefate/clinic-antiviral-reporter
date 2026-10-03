@@ -58,6 +58,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
                     }
                   ],
                   "title": "Response Createsession"
@@ -341,6 +344,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
                     }
                   ],
                   "title": "Response Createpairing"
@@ -478,6 +484,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
                     }
                   ],
                   "title": "Response Revokedevice"
@@ -567,6 +576,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
                     }
                   ],
                   "title": "Response Refreshsyntheticorders"
@@ -625,6 +637,75 @@
                 }
               ],
               "title": "Chart"
+            }
+          },
+          {
+            "name": "caseStatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "all",
+                "unfinished",
+                "excluded",
+                "awaiting_reason",
+                "awaiting_reconciliation",
+                "internally_complete"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Casestatus"
+            }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Datefrom"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dateto"
+            }
+          },
+          {
+            "name": "exception",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "duplicate",
+                "overdue",
+                "quantity_changed"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Exception"
             }
           },
           {
@@ -825,6 +906,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
                     }
                   ],
                   "title": "Response Savereason"
@@ -916,6 +1000,378 @@
           }
         }
       }
+    },
+    "/api/v1/cases/{case_id}/dispensing": {
+      "post": {
+        "summary": "Dispensing",
+        "operationId": "saveDispensing",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDispensing"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    }
+                  ],
+                  "title": "Response Savedispensing"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/history": {
+      "get": {
+        "summary": "History",
+        "operationId": "getCaseHistory",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CaseHistoryEvent"
+                  },
+                  "title": "Response Getcasehistory"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/exclusion": {
+      "post": {
+        "summary": "Exclusion",
+        "operationId": "setCaseExclusion",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExclusion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    }
+                  ],
+                  "title": "Response Setcaseexclusion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/bulk-lot": {
+      "post": {
+        "summary": "Bulk Lot",
+        "operationId": "applyBulkLot",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkLot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PairingView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeviceView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CaseView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BulkLotView"
+                    }
+                  ],
+                  "title": "Response Applybulklot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -958,6 +1414,87 @@
           "changes"
         ],
         "title": "AuditView"
+      },
+      "BulkCaseRevision": {
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Caseid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expectedrevision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "caseId",
+          "expectedRevision"
+        ],
+        "title": "BulkCaseRevision"
+      },
+      "BulkLot": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "lot": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Lot"
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/BulkCaseRevision"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Cases"
+          },
+          "replaceConfirmed": {
+            "type": "boolean",
+            "title": "Replaceconfirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "lot",
+          "cases",
+          "replaceConfirmed"
+        ],
+        "title": "BulkLot"
+      },
+      "BulkLotView": {
+        "properties": {
+          "appliedCases": {
+            "items": {
+              "$ref": "#/components/schemas/CaseView"
+            },
+            "type": "array",
+            "title": "Appliedcases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "appliedCases"
+        ],
+        "title": "BulkLotView"
       },
       "CaseDetail": {
         "properties": {
@@ -1019,7 +1556,9 @@
             "type": "string",
             "enum": [
               "awaiting_reason",
-              "awaiting_reconciliation"
+              "awaiting_reconciliation",
+              "internally_complete",
+              "excluded"
             ],
             "title": "Status",
             "default": "awaiting_reason"
@@ -1034,6 +1573,40 @@
               }
             ],
             "title": "Reason"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/LotAllocation"
+            },
+            "type": "array",
+            "title": "Lots"
+          },
+          "excluded": {
+            "type": "boolean",
+            "title": "Excluded",
+            "default": false
+          },
+          "exclusionReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusionreason"
+          },
+          "internallyComplete": {
+            "type": "boolean",
+            "title": "Internallycomplete",
+            "default": false
+          },
+          "exportEligible": {
+            "type": "boolean",
+            "const": false,
+            "title": "Exporteligible",
+            "default": false
           },
           "synthetic": {
             "type": "boolean",
@@ -1073,6 +1646,45 @@
           "snapshots"
         ],
         "title": "CaseDetail"
+      },
+      "CaseHistoryEvent": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "deviceId": {
+            "type": "string",
+            "title": "Deviceid"
+          },
+          "operator": {
+            "type": "string",
+            "title": "Operator"
+          },
+          "occurredAt": {
+            "type": "number",
+            "title": "Occurredat"
+          },
+          "changes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Changes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sequence",
+          "kind",
+          "deviceId",
+          "operator",
+          "occurredAt",
+          "changes"
+        ],
+        "title": "CaseHistoryEvent"
       },
       "CaseView": {
         "properties": {
@@ -1134,7 +1746,9 @@
             "type": "string",
             "enum": [
               "awaiting_reason",
-              "awaiting_reconciliation"
+              "awaiting_reconciliation",
+              "internally_complete",
+              "excluded"
             ],
             "title": "Status",
             "default": "awaiting_reason"
@@ -1149,6 +1763,40 @@
               }
             ],
             "title": "Reason"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/LotAllocation"
+            },
+            "type": "array",
+            "title": "Lots"
+          },
+          "excluded": {
+            "type": "boolean",
+            "title": "Excluded",
+            "default": false
+          },
+          "exclusionReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusionreason"
+          },
+          "internallyComplete": {
+            "type": "boolean",
+            "title": "Internallycomplete",
+            "default": false
+          },
+          "exportEligible": {
+            "type": "boolean",
+            "const": false,
+            "title": "Exporteligible",
+            "default": false
           },
           "synthetic": {
             "type": "boolean",
@@ -1342,6 +1990,29 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "LotAllocation": {
+        "properties": {
+          "lot": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Lot"
+          },
+          "quantity": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lot",
+          "quantity"
+        ],
+        "title": "LotAllocation"
+      },
       "PairingView": {
         "properties": {
           "pairingCode": {
@@ -1520,6 +2191,49 @@
         ],
         "title": "RevokeDevice"
       },
+      "SaveDispensing": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "reportedQuantity": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Reportedquantity"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/LotAllocation"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Lots"
+          },
+          "changeReason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Changereason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "reportedQuantity",
+          "lots"
+        ],
+        "title": "SaveDispensing"
+      },
       "SaveReason": {
         "properties": {
           "requestId": {
@@ -1593,6 +2307,40 @@
           "expiresAt"
         ],
         "title": "SessionView"
+      },
+      "SetExclusion": {
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requestid"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "excluded": {
+            "type": "boolean",
+            "title": "Excluded"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "excluded",
+          "reason"
+        ],
+        "title": "SetExclusion"
       },
       "SnapshotView": {
         "properties": {

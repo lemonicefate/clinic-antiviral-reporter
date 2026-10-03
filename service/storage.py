@@ -30,7 +30,7 @@ class Store:
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA foreign_keys=ON")
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 4:
+            if version > 5:
                 raise RuntimeError("Central schema is newer than this service")
             self.db.execute("PRAGMA journal_mode=WAL")
             if version == 0:
@@ -89,6 +89,15 @@ class Store:
                     BEGIN IMMEDIATE;
                     ALTER TABLE report_cases ADD COLUMN reason TEXT;
                     PRAGMA user_version=4;
+                    COMMIT;
+                """)
+            if version < 5:
+                self.db.executescript("""
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE report_cases ADD COLUMN lots TEXT NOT NULL DEFAULT '[]';
+                    ALTER TABLE report_cases ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0;
+                    ALTER TABLE report_cases ADD COLUMN exclusion_reason TEXT;
+                    PRAGMA user_version=5;
                     COMMIT;
                 """)
         except Exception:

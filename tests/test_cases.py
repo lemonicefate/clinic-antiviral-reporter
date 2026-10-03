@@ -13,6 +13,105 @@ from service.settings import Settings
 
 
 class SyntheticQueueTest(unittest.TestCase):
+    def test_bulk_conflict_reports_reason_change_and_keeps_every_selected_case_unchanged(self):
+        _, editor = self.reason_context("reporting")
+        cases = self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"][:2]
+        changed = cases[1]
+        reason = "23:未滿5歲及65歲以上之類流感患者"
+        self.client.post(f'/api/v1/cases/{changed["caseId"]}/reason', headers=editor, json={
+            "requestId": str(uuid4()), "expectedRevision": 1, "reason": reason, "patientConfirmed": True})
+        bulk = {"requestId": str(uuid4()), "expectedRevision": 0, "lot": "SYN-CONFLICT", "replaceConfirmed": True,
+                "cases": [{"caseId": c["caseId"], "expectedRevision": 1} for c in cases]}
+        result = self.client.post("/api/v1/cases/bulk-lot", headers=editor, json=bulk)
+        self.assertEqual(result.status_code, 409)
+        self.assertEqual(result.json()["detail"]["caseId"], changed["caseId"])
+        self.assertEqual(result.json()["detail"]["differences"]["reason"], reason)
+        for case in cases:
+            latest = self.client.get(f'/api/v1/cases/{case["caseId"]}', headers=editor).json()
+            self.assertEqual(latest["lots"], [])
+        self.assertEqual(self.client.post("/api/v1/cases/bulk-lot", headers=self.headers, json=bulk).status_code, 403)
+
+    def test_bulk_audit_failure_rolls_back_the_entire_batch(self):
+        _, editor = self.reason_context("reporting")
+        cases = self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"][:2]
+        with self.client.app.state.store.transaction() as db:
+            db.execute("CREATE TRIGGER synthetic_bulk_failure BEFORE INSERT ON audit_events "
+                       "WHEN NEW.kind='bulk_lot_saved' AND json_extract(NEW.changes,'$.caseId')='" +
+                       cases[1]["caseId"] + "' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+        command = {"requestId": str(uuid4()), "expectedRevision": 0, "lot": "SYN-ATOMIC", "replaceConfirmed": True,
+                   "cases": [{"caseId": c["caseId"], "expectedRevision": 1} for c in cases]}
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.client.post("/api/v1/cases/bulk-lot", headers=editor, json=command)
+        for case in cases:
+            latest = self.client.get(f'/api/v1/cases/{case["caseId"]}', headers=editor).json()
+            self.assertEqual(latest["lots"], [])
+            self.assertEqual(latest["revision"], 1)
+        events = self.client.get("/api/v1/audit", headers=self.headers).json()
+        self.assertFalse(any(e["kind"] == "bulk_lot_saved" for e in events))
+        with self.client.app.state.store.transaction() as db:
+            db.execute("DROP TRIGGER synthetic_bulk_failure")
+        self.assertEqual(self.client.post("/api/v1/cases/bulk-lot", headers=editor, json=command).status_code, 200)
+
+    def test_bulk_lots_remain_independent_and_exclusion_retains_history(self):
+        _, editor = self.reason_context("reporting")
+        cases = self.client.get("/api/v1/cases?physician=", headers=editor).json()["items"][:2]
+        bulk = {"requestId": str(uuid4()), "expectedRevision": 0, "lot": "SYN-SHARED",
+                "replaceConfirmed": True, "cases": [{"caseId": c["caseId"], "expectedRevision": 1} for c in cases]}
+        first = self.client.post("/api/v1/cases/bulk-lot", headers=editor, json=bulk)
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(len(first.json()["appliedCases"]), 2)
+        self.assertEqual(self.client.post("/api/v1/cases/bulk-lot", headers=editor, json=bulk).json(), first.json())
+        path = f'/api/v1/cases/{cases[0]["caseId"]}'
+        changed = self.client.post(path + "/dispensing", headers=editor, json={
+            "requestId": str(uuid4()), "expectedRevision": 2, "reportedQuantity": 10,
+            "lots": [{"lot": "SYN-OTHER", "quantity": 10}], "changeReason": ""})
+        self.assertEqual(changed.status_code, 200)
+        other = self.client.get(f'/api/v1/cases/{cases[1]["caseId"]}', headers=editor).json()
+        self.assertEqual(other["lots"], [{"lot": "SYN-SHARED", "quantity": 10}])
+        excluded = {"requestId": str(uuid4()), "expectedRevision": 3, "excluded": True, "reason": "synthetic not collected"}
+        self.assertEqual(self.client.post(path + "/exclusion", headers=editor, json=excluded).status_code, 200)
+        queue = self.client.get("/api/v1/cases?physician=", headers=editor).json()
+        self.assertEqual(queue["total"], 3)
+        self.assertEqual(queue["awaitingReason"], 3)
+        hidden = self.client.get("/api/v1/cases?physician=&caseStatus=excluded", headers=editor).json()
+        self.assertEqual(hidden["total"], 1)
+        self.assertFalse(hidden["items"][0]["exportEligible"])
+        self.assertFalse(hidden["items"][0]["overdue"])
+        included = excluded | {"requestId": str(uuid4()), "expectedRevision": 4, "excluded": False,
+                               "reason": "synthetic dispensing confirmed"}
+        self.assertEqual(self.client.post(path + "/exclusion", headers=editor, json=included).status_code, 200)
+        history = self.client.get(path + "/history", headers=editor).json()
+        decisions = [event for event in history if event["kind"] == "exclusion_changed"]
+        self.assertEqual([event["changes"]["reason"] for event in decisions], [excluded["reason"], included["reason"]])
+        self.assertEqual(self.client.get(path, headers=editor).json()["lots"], [{"lot": "SYN-OTHER", "quantity": 10}])
+
+    def test_dispensing_preserves_source_and_requires_exact_lot_totals(self):
+        case, editor = self.reason_context("reporting")
+        route = f'/api/v1/cases/{case["caseId"]}/dispensing'
+        command = {"requestId": str(uuid4()), "expectedRevision": 1, "reportedQuantity": 10,
+                   "lots": [{"lot": "SYN-LOT-A", "quantity": 6}, {"lot": "SYN-LOT-B", "quantity": 3}],
+                   "changeReason": ""}
+        self.assertEqual(self.client.post(route, headers=editor, json=command).status_code, 422)
+        command["lots"][1]["quantity"] = 4
+        saved = self.client.post(route, headers=editor, json=command)
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertEqual(saved.json()["lots"], command["lots"])
+        self.assertEqual(self.client.post(route, headers=editor, json=command).json(), saved.json())
+        reduced = {"requestId": str(uuid4()), "expectedRevision": 2, "reportedQuantity": 5,
+                   "lots": [{"lot": "SYN-LOT-A", "quantity": 5}], "changeReason": ""}
+        self.assertEqual(self.client.post(route, headers=editor, json=reduced).status_code, 422)
+        reduced["changeReason"] = "synthetic partial dispensing"
+        response = self.client.post(route, headers=editor, json=reduced)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["sourceQuantity"], 10)
+        self.assertEqual(response.json()["reportedQuantity"], 5)
+        for value in [0, -1, 5.5, "5", True, 11]:
+            invalid = reduced | {"requestId": str(uuid4()), "expectedRevision": 3, "reportedQuantity": value}
+            self.assertEqual(self.client.post(route, headers=editor, json=invalid).status_code, 422)
+        history = self.client.get(f'/api/v1/cases/{case["caseId"]}/history', headers=editor)
+        self.assertEqual(history.status_code, 200)
+        self.assertEqual(history.json()[-1]["changes"]["reason"], reduced["changeReason"])
+
     def reason_context(self, capability):
         self.client.post("/api/v1/synthetic/refresh", headers=self.headers,
                          json={"requestId": str(uuid4()), "expectedRevision": 0})

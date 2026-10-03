@@ -32,7 +32,7 @@ def main() -> None:
                 time.sleep(0.1)
             else:
                 raise RuntimeError("Synthetic acceptance startup timed out")
-            for script in ("case-queue.cjs", "reasons.cjs"):
+            for script in ("case-queue.cjs", "reasons.cjs", "reporting.cjs", "reporting-conflicts.cjs"):
                 subprocess.run(["node", str(repo / "client/e2e-real" / script)], cwd=repo / "client",
                                env=environment, check=True, timeout=120)
         finally:
